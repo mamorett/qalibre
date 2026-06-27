@@ -1,4 +1,4 @@
-# 📚 Qalibre (Go Port)
+# 📚 Qalibre
 
 <p align="center">
   <img src="logo.png" alt="Qalibre Logo" width="120" style="border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);"/>
@@ -100,4 +100,4 @@ go build -o qalibre ./cmd/qalibre
 
 Developed and ported to Go by [@mamorett](https://github.com/mamorett).
 
-*Qalibre is forked from Calibre-Web and licensed under the GPL v3 License.*
+*Qalibre is inspired by Calibre-Web, but it's a completely new codebase written in Go and TypeScript. It's licensed under the MIT License.*
