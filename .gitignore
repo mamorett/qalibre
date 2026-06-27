@@ -27,6 +27,36 @@ go.work.sum
 # env file
 .env
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# calibre-web
+*.db
+*.log
+cps/cache
+
+.idea/
+*.bak
+*.log.*
+.key
+
+settings.yaml
+_refactor
+BLUE_REFACTOR.md
+
+### Node / Frontend ###
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+frontend/.vite/
+
+### Generated test reports ###
+test/*TestSummary*.html
+
+### OS / Editor extras ###
+.DS_Store
+.vscode/
+
+### Go ###
+qalibre
+build_test
+/temp
+/cache
+goto.md

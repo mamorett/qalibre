@@ -1,0 +1,144 @@
+package appdb
+
+import (
+	"database/sql"
+	"encoding/json"
+	"time"
+)
+
+// User table schema
+type User struct {
+	ID                  int            `db:"id"`
+	Name                string         `db:"name"`
+	Email               string         `db:"email"`
+	Role                int            `db:"role"`
+	Password            string         `db:"password"`
+	KindleMail          string         `db:"kindle_mail"`
+	Locale              string         `db:"locale"`
+	SidebarView         int            `db:"sidebar_view"`
+	DefaultLanguage     string         `db:"default_language"`
+	DeniedTags          string         `db:"denied_tags"`
+	AllowedTags         string         `db:"allowed_tags"`
+	DeniedColumnValue   string         `db:"denied_column_value"`
+	AllowedColumnValue  string         `db:"allowed_column_value"`
+	ViewSettings        string         `db:"view_settings"` // Stored as JSON string
+	KoboOnlyShelvesSync int            `db:"kobo_only_shelves_sync"`
+}
+
+// GetViewSettings unmarshals the ViewSettings field
+func (u *User) GetViewSettings() (map[string]interface{}, error) {
+	var m map[string]interface{}
+	if u.ViewSettings == "" || u.ViewSettings == "{}" {
+		return make(map[string]interface{}), nil
+	}
+	err := json.Unmarshal([]byte(u.ViewSettings), &m)
+	return m, err
+}
+
+// SetViewSettings marshals view settings to the ViewSettings field
+func (u *User) SetViewSettings(m map[string]interface{}) error {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	u.ViewSettings = string(b)
+	return nil
+}
+
+// Shelf table schema
+type Shelf struct {
+	ID           int       `db:"id"`
+	UUID         string    `db:"uuid"`
+	Name         string    `db:"name"`
+	IsPublic     int       `db:"is_public"`
+	UserID       int       `db:"user_id"`
+	KoboSync     bool      `db:"kobo_sync"`
+	Created      time.Time `db:"created"`
+	LastModified time.Time `db:"last_modified"`
+}
+
+// BookShelfLink table schema (book_shelf_link)
+type BookShelfLink struct {
+	ID        int       `db:"id"`
+	BookID    int       `db:"book_id"`
+	Order     int       `db:"order"`
+	Shelf     int       `db:"shelf"` // Shelf ID
+	DateAdded time.Time `db:"date_added"`
+}
+
+// ReadBook table schema (book_read_link)
+type ReadBook struct {
+	ID                      int          `db:"id"`
+	BookID                  int          `db:"book_id"`
+	UserID                  int          `db:"user_id"`
+	ReadStatus              int          `db:"read_status"`
+	LastModified            time.Time    `db:"last_modified"`
+	LastTimeStartedReading  sql.NullTime `db:"last_time_started_reading"`
+	TimesStartedReading     int          `db:"times_started_reading"`
+}
+
+const (
+	ReadStatusUnread     = 0
+	ReadStatusFinished   = 1
+	ReadStatusInProgress = 2
+)
+
+// Bookmark table schema
+type Bookmark struct {
+	ID          int    `db:"id"`
+	UserID      int    `db:"user_id"`
+	BookID      int    `db:"book_id"`
+	Format      string `db:"format"`
+	BookmarkKey string `db:"bookmark_key"`
+}
+
+// ArchivedBook table schema
+type ArchivedBook struct {
+	ID           int       `db:"id"`
+	UserID       int       `db:"user_id"`
+	BookID       int       `db:"book_id"`
+	IsArchived   bool      `db:"is_archived"`
+	LastModified time.Time `db:"last_modified"`
+}
+
+// Downloads table schema
+type Downloads struct {
+	ID     int `db:"id"`
+	BookID int `db:"book_id"`
+	UserID int `db:"user_id"`
+}
+
+// Registration table schema
+type Registration struct {
+	ID     int    `db:"id"`
+	Domain string `db:"domain"`
+	Allow  int    `db:"allow"`
+}
+
+// Thumbnail table schema
+type Thumbnail struct {
+	ID           int          `db:"id"`
+	EntityID     int          `db:"entity_id"`
+	UUID         string       `db:"uuid"`
+	Format       string       `db:"format"`
+	Type         int16        `db:"type"`
+	Resolution   int16        `db:"resolution"`
+	Filename     string       `db:"filename"`
+	GeneratedAt  time.Time    `db:"generated_at"`
+	Expiration   sql.NullTime `db:"expiration"`
+}
+
+// UserSession table schema (user_session)
+type UserSession struct {
+	ID         int    `db:"id"`
+	UserID     int    `db:"user_id"`
+	SessionKey string `db:"session_key"`
+	Random     string `db:"random"`
+	Expiry     int64  `db:"expiry"`
+}
+
+// FlaskSettings table schema (flask_settings)
+type FlaskSettings struct {
+	ID              int    `db:"id"`
+	FlaskSessionKey []byte `db:"flask_session_key"`
+}
