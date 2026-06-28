@@ -1,4 +1,4 @@
-import { Card, Tag, Button } from "@blueprintjs/core";
+import { Card, Tag, Button, Checkbox } from "@blueprintjs/core";
 import { useSearchParams } from "react-router-dom";
 import { BookRow } from "../types/book";
 
@@ -6,8 +6,12 @@ interface RowCardProps {
   book: BookRow;
   index: number;
   onClick: () => void;
-  onToggleRead: () => void;
-  onToggleArchived: () => void;
+  onToggleRead?: () => void;
+  onToggleArchived?: () => void;
+  onRemove?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 /** Cover-size presets. The `key` matches both the URL ?cover= value and the
@@ -20,7 +24,17 @@ const COVER_SIZES = {
 
 type CoverSize = keyof typeof COVER_SIZES;
 
-export function RowCard({ book, index, onClick, onToggleRead, onToggleArchived }: RowCardProps) {
+export function RowCard({
+  book,
+  index,
+  onClick,
+  onToggleRead = () => {},
+  onToggleArchived = () => {},
+  onRemove,
+  selectable = false,
+  selected = false,
+  onToggleSelect = () => {},
+}: RowCardProps) {
   const [searchParams] = useSearchParams();
   const requested = (searchParams.get("cover") || "md") as CoverSize;
   const coverKey: CoverSize = COVER_SIZES[requested] ? requested : "md";
@@ -30,7 +44,7 @@ export function RowCard({ book, index, onClick, onToggleRead, onToggleArchived }
   const tagsList = book.tags ? book.tags.split(",").map(t => t.trim()).filter(Boolean).slice(0, 3) : [];
 
   return (
-    <Card interactive onClick={onClick} className="bp6-card" style={{ display: "flex", gap: "1rem", padding: "1rem" }}>
+    <Card interactive onClick={selectable ? onToggleSelect : onClick} className="bp6-card" style={{ display: "flex", gap: "1rem", padding: "1rem" }}>
       {/* Cover Image */}
       <div style={{ flexShrink: 0, width: `${cover.width}px`, height: `${cover.height}px`, backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-light)", overflow: "hidden" }}>
         <img
@@ -54,22 +68,41 @@ export function RowCard({ book, index, onClick, onToggleRead, onToggleArchived }
           
           {/* Toggle Actions */}
           <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
-            <Button
-              icon={book.read_status ? "eye-open" : "eye-off"}
-              variant="minimal"
-              title={book.read_status ? "Mark Unread" : "Mark Read"}
-              onClick={onToggleRead}
-              className={book.read_status ? "bp6-intent-success" : ""}
-              style={{ padding: "2px 6px", minHeight: "24px" }}
-            />
-            <Button
-              icon={book.is_archived ? "archive" : "import"}
-              variant="minimal"
-              title={book.is_archived ? "Restore from Archive" : "Archive Book"}
-              onClick={onToggleArchived}
-              className={book.is_archived ? "bp6-intent-warning" : ""}
-              style={{ padding: "2px 6px", minHeight: "24px" }}
-            />
+            {selectable ? (
+              <Checkbox
+                checked={selected}
+                onChange={onToggleSelect}
+                style={{ margin: 0 }}
+              />
+            ) : onRemove ? (
+              <Button
+                icon="cross"
+                variant="minimal"
+                title="Remove from Dataset"
+                onClick={onRemove}
+                intent="danger"
+                style={{ padding: "2px 6px", minHeight: "24px" }}
+              />
+            ) : (
+              <>
+                <Button
+                  icon={book.read_status ? "eye-open" : "eye-off"}
+                  variant="minimal"
+                  title={book.read_status ? "Mark Unread" : "Mark Read"}
+                  onClick={onToggleRead}
+                  className={book.read_status ? "bp6-intent-success" : ""}
+                  style={{ padding: "2px 6px", minHeight: "24px" }}
+                />
+                <Button
+                  icon={book.is_archived ? "archive" : "import"}
+                  variant="minimal"
+                  title={book.is_archived ? "Restore from Archive" : "Archive Book"}
+                  onClick={onToggleArchived}
+                  className={book.is_archived ? "bp6-intent-warning" : ""}
+                  style={{ padding: "2px 6px", minHeight: "24px" }}
+                />
+              </>
+            )}
           </div>
         </div>
 

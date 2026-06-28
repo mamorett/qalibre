@@ -28,11 +28,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o qalibre ./cmd/qalibre
 FROM alpine:3.18 AS runtime
 WORKDIR /app
 
-# Install runtime dependencies: ImageMagick (thumbnail generation) + p7zip (comic books) + ca-certificates (HTTPS)
+# Install runtime dependencies: ImageMagick (thumbnail generation) + p7zip (comic books) + ca-certificates (HTTPS) + poppler-utils (PDF text extraction)
 RUN apk add --no-cache \
     ca-certificates \
     imagemagick \
-    p7zip
+    p7zip \
+    poppler-utils
 
 # Copy Go binary from backend-builder
 COPY --from=backend-builder /build/qalibre /app/qalibre
@@ -40,6 +41,10 @@ COPY --from=backend-builder /build/qalibre /app/qalibre
 # Copy built frontend assets and public assets from frontend-builder stage
 COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
 COPY --from=frontend-builder /build/frontend/public /app/frontend/public
+
+# Create directory for persistent data (settings, users, datasets app.db)
+RUN mkdir -p /data
+VOLUME ["/data"]
 
 # Expose Qalibre port
 EXPOSE 8083

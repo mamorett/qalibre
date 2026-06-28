@@ -117,6 +117,13 @@ func (w *Worker) AddTask(username string, t Task) string {
 		IsCancellable: t.IsCancellable(),
 	}
 
+	type taskWithID interface {
+		SetTaskID(id string)
+	}
+	if tid, ok := t.(taskWithID); ok {
+		tid.SetTaskID(id)
+	}
+
 	// Keep at most 50 past/queued tasks
 	if len(w.tasks) >= 50 {
 		w.tasks = w.tasks[1:]
@@ -125,6 +132,30 @@ func (w *Worker) AddTask(username string, t Task) string {
 	w.tasks = append(w.tasks, info)
 	w.queue <- info
 	return id
+}
+
+// SetProgress updates the progress of a running task by ID
+func (w *Worker) SetProgress(id string, p float64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, info := range w.tasks {
+		if info.ID == id {
+			info.Progress = p
+			break
+		}
+	}
+}
+
+// SetMessage updates the status message of a running task by ID
+func (w *Worker) SetMessage(id string, msg string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, info := range w.tasks {
+		if info.ID == id {
+			info.Message = msg
+			break
+		}
+	}
 }
 
 // CancelTask cancels a queued/running task by ID
@@ -161,10 +192,15 @@ func (w *Worker) GetTasks(username string, isAdmin bool) []map[string]interface{
 	res := make([]map[string]interface{}, 0)
 	for _, t := range w.tasks {
 		if t.User == username || isAdmin {
+			taskMsg := t.Name
+			if t.Message != "" {
+				taskMsg = t.Name + ": " + t.Message
+			}
+
 			item := map[string]interface{}{
 				"task_id":        t.ID,
 				"user":           t.User,
-				"taskMessage":    t.Name,
+				"taskMessage":    taskMsg,
 				"progress":       fmt.Sprintf("%d %%", int(t.Progress*100)),
 				"stat":           t.Stat,
 				"is_cancellable": t.IsCancellable,

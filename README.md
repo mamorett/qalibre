@@ -55,13 +55,26 @@ To run Qalibre instantly in a self-contained container:
       -p 8083:8083 \
       --name qalibre \
       -v /path/to/calibre/library:/library \
-      -v /path/to/config:/app/config \
+      -v /path/to/config:/data \
       qalibre
     ```
 
 > [!NOTE]
 > *   `/library` must contain your Calibre library's `metadata.db` and book folders.
-> *   `/app/config` is where settings and user sessions (`app.db`) are persisted.
+> *   `/data` is where settings, user sessions, and datasets (`app.db`) are persisted.
+
+## 📦 System Dependencies
+
+For full functionality (specifically PDF-to-Markdown text extraction, thumbnail generation, and comic book support), you should install these dependencies on your host machine if running from source:
+
+*   **`pdftotext` (part of `poppler-utils`)**: Required for PDF text extraction.
+    *   *Ubuntu/Debian*: `sudo apt-get install poppler-utils`
+    *   *macOS*: `brew install poppler`
+    *   *Arch Linux*: `sudo pacman -S poppler`
+    *   *Alpine Linux*: `apk add poppler-utils`
+    *   *Windows*: Download poppler-windows and add the `bin` directory to your system environment variables PATH.
+*   **`imagemagick`**: Required for cover page thumbnail generation.
+*   **`p7zip`**: Required for comic book archive formats (`.cbr`, `.cbz`).
 
 ---
 

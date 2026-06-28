@@ -160,6 +160,16 @@ export function Layout() {
               </Button>
               <Button
                 alignText="left"
+                icon="database"
+                variant="minimal"
+                fill
+                onClick={() => navigate("/spa/datasets")}
+                active={location.pathname.startsWith("/spa/datasets")}
+              >
+                Datasets
+              </Button>
+              <Button
+                alignText="left"
                 icon="office"
                 variant="minimal"
                 fill

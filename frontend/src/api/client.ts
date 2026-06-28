@@ -44,3 +44,57 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const ct = res.headers.get("Content-Type") ?? "";
   return (ct.includes("application/json") ? res.json() : res.text()) as Promise<T>;
 }
+
+import {
+  DatasetSummary,
+  DatasetDetail,
+  CreateDatasetPayload,
+  AddBooksPayload,
+  ExportPayload,
+} from "../types/dataset";
+import { BookListResponse } from "../types/book";
+
+export interface BookListQ {
+  offset: number;
+  limit: number;
+  search?: string;
+  sort?: string;
+  order?: string;
+}
+
+function buildQs(params: any): string {
+  const s = new URLSearchParams();
+  for (const k in params) {
+    if (params[k] !== undefined && params[k] !== null && params[k] !== "") {
+      s.set(k, String(params[k]));
+    }
+  }
+  const str = s.toString();
+  return str ? "?" + str : "";
+}
+
+export interface TaskStatus {
+  task_id: string;
+  user: string;
+  taskMessage: string;
+  progress: string;
+  stat: number;
+  is_cancellable: boolean;
+  error: string;
+  status: "Started" | "Waiting" | "Finished" | "Failed" | "Cancelled" | "Ended";
+}
+
+export const datasetsApi = {
+  list:       (search?: string) => api<DatasetSummary[]>(`/api/v1/datasets${buildQs({ search })}`),
+  get:        (id: number) => api<DatasetDetail>(`/api/v1/dataset/${id}`),
+  create:     (p: CreateDatasetPayload) => api<DatasetDetail>(`/api/v1/datasets`, { method: "POST", body: JSON.stringify(p) }),
+  update:     (id: number, p: Partial<CreateDatasetPayload>) => api<DatasetDetail>(`/api/v1/dataset/${id}`, { method: "PATCH", body: JSON.stringify(p) }),
+  remove:     (id: number) => api<void>(`/api/v1/dataset/${id}`, { method: "DELETE" }),
+  books:      (id: number, q: BookListQ) => api<BookListResponse>(`/api/v1/dataset/${id}/books${buildQs(q)}`),
+  available:  (id: number, q: BookListQ) => api<BookListResponse>(`/api/v1/dataset/${id}/available-books${buildQs(q)}`),
+  addBooks:   (id: number, p: AddBooksPayload) => api<{ added: number; skipped: number }>(`/api/v1/dataset/${id}/books`, { method: "POST", body: JSON.stringify(p) }),
+  removeBook: (id: number, bookId: number) => api<void>(`/api/v1/dataset/${id}/books/${bookId}`, { method: "DELETE" }),
+  export:     (id: number, p: ExportPayload) => api<{ task_id: string }>(`/api/v1/dataset/${id}/export`, { method: "POST", body: JSON.stringify(p) }),
+  tasks:      () => api<TaskStatus[]>("/ajax/emailstat"),
+  cancelTask: (taskId: string) => api<{ success: boolean }>("/ajax/canceltask", { method: "POST", body: JSON.stringify({ task_id: taskId }) }),
+};
