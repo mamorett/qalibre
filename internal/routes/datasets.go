@@ -69,7 +69,7 @@ type ExportRequest struct {
 type ExportChunkedRequest struct {
 	Path         string `json:"path"`
 	ChunkSize    int    `json:"chunk_size"`
-	ChunkOverlap int    `json:"chunk_overlap"`
+	ChunkOverlap *int   `json:"chunk_overlap"`
 }
 
 // ListDatasets handles GET /api/v1/datasets
@@ -928,7 +928,10 @@ func (rm *RouteManager) ExportDatasetChunked(w http.ResponseWriter, r *http.Requ
 		chunkSize = 100000
 	}
 
-	chunkOverlap := payload.ChunkOverlap
+	chunkOverlap := 80
+	if payload.ChunkOverlap != nil {
+		chunkOverlap = *payload.ChunkOverlap
+	}
 	if chunkOverlap < 0 {
 		chunkOverlap = 0
 	}

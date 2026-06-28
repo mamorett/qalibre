@@ -62,8 +62,8 @@ export default function DatasetDetailPage() {
   const [exportTab, setExportTab] = useState<"plain" | "chunked">("plain");
   const [exportPath, setExportPath] = useState("");
   const [chunkPath, setChunkPath] = useState("");
-  const [chunkSize, setChunkSize] = useState<number>(500);
-  const [chunkOverlap, setChunkOverlap] = useState<number>(50);
+  const [chunkSize, setChunkSize] = useState<number>(768);
+  const [chunkOverlap, setChunkOverlap] = useState<number>(80);
 
   // Delete Dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -493,12 +493,12 @@ export default function DatasetDetailPage() {
                 <tbody>
                   <tr style={{ fontSize: "0.8rem" }}>
                     <td style={{ fontFamily: "Space Mono, monospace" }}>chunk_size</td>
-                    <td>500</td>
+                    <td>768</td>
                     <td>Maximum characters per chunk, passed to <code>langchain.text_splitter.MarkdownTextSplitter</code>.</td>
                   </tr>
                   <tr style={{ fontSize: "0.8rem" }}>
                     <td style={{ fontFamily: "Space Mono, monospace" }}>chunk_overlap</td>
-                    <td>50</td>
+                    <td>80</td>
                     <td>Overlap characters between consecutive chunks.</td>
                   </tr>
                   <tr style={{ fontSize: "0.8rem" }}>
@@ -908,7 +908,7 @@ export default function DatasetDetailPage() {
 
                   <div style={{ display: "flex", gap: "1rem" }}>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <label style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>Chunk Size (characters, default 500)</label>
+                      <label style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>Chunk Size (characters, default 768)</label>
                       <NumericInput
                         min={50}
                         max={100000}
@@ -916,13 +916,13 @@ export default function DatasetDetailPage() {
                         majorStepSize={500}
                         minorStepSize={10}
                         value={chunkSize.toString()}
-                        onValueChange={(_, s) => setChunkSize(parseInt(s || "500", 10))}
+                        onValueChange={(_, s) => setChunkSize(parseInt(s || "768", 10))}
                         fill
                         style={{ borderRadius: 0 }}
                       />
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <label style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>Chunk Overlap (characters, default 50, must be &lt; chunk size)</label>
+                      <label style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>Chunk Overlap (characters, default 80, must be &lt; chunk size)</label>
                       <NumericInput
                         min={0}
                         max={99999}
@@ -930,7 +930,7 @@ export default function DatasetDetailPage() {
                         majorStepSize={50}
                         minorStepSize={1}
                         value={chunkOverlap.toString()}
-                        onValueChange={(_, s) => setChunkOverlap(parseInt(s || "50", 10))}
+                        onValueChange={(_, s) => setChunkOverlap(parseInt(s || "80", 10))}
                         fill
                         style={{ borderRadius: 0 }}
                       />
