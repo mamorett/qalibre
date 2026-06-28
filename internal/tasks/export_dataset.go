@@ -21,6 +21,7 @@ type TaskExportDataset struct {
 	TaskID     string
 	DatasetID  int
 	ExportPath string
+	Force      bool
 	UserID     int
 	Cfg        *config.Config
 }
@@ -215,17 +216,19 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		}
 		bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
 
-		// Idempotency: Skip if file already exists
-		if _, err := os.Stat(bookFile); err == nil {
-			slog.Info("export: skipping already exported book", "taskID", t.TaskID, "bookID", bookID, "file", bookFile)
-			statuses = append(statuses, bookStatus{
-				Title:        book.Title,
-				BookID:       bookID,
-				SourceFormat: ext,
-				Status:       "Skipped",
-				Details:      "Already exported (file exists)",
-			})
-			continue
+		// Idempotency: Skip if file already exists (unless force is requested)
+		if !t.Force {
+			if _, err := os.Stat(bookFile); err == nil {
+				slog.Info("export: skipping already exported book", "taskID", t.TaskID, "bookID", bookID, "file", bookFile)
+				statuses = append(statuses, bookStatus{
+					Title:        book.Title,
+					BookID:       bookID,
+					SourceFormat: ext,
+					Status:       "Skipped",
+					Details:      "Already exported (file exists)",
+				})
+				continue
+			}
 		}
 
 		slog.Info("export: converting file", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath, "format", ext)
@@ -234,9 +237,9 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		var mdText string
 		var convErr error
 		if ext == "kepub" {
-			mdText, convErr = books.ToMarkdown(filePath, "epub")
+			mdText, convErr = books.ToMarkdown(ctx, filePath, "epub")
 		} else {
-			mdText, convErr = books.ToMarkdown(filePath, ext)
+			mdText, convErr = books.ToMarkdown(ctx, filePath, ext)
 		}
 
 		if convErr != nil {

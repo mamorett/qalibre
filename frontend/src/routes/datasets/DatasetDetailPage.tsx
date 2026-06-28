@@ -25,6 +25,7 @@ import {
   Tab,
   NumericInput,
   ButtonGroup,
+  Checkbox,
 } from "@blueprintjs/core";
 import { useApp } from "../../context/AppContext";
 import {
@@ -64,6 +65,7 @@ export default function DatasetDetailPage() {
   const [chunkPath, setChunkPath] = useState("");
   const [chunkSize, setChunkSize] = useState<number>(768);
   const [chunkOverlap, setChunkOverlap] = useState<number>(80);
+  const [forceExport, setForceExport] = useState(false);
 
   // Delete Dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -277,7 +279,10 @@ export default function DatasetDetailPage() {
     if (exportTab === "plain") {
       if (!exportPath.trim()) return;
       exportMutation.mutate(
-        { path: exportPath.trim() },
+        {
+          path: exportPath.trim(),
+          force: forceExport,
+        },
         {
           onSuccess: (data) => {
             updateActiveTaskId(data.task_id);
@@ -313,6 +318,7 @@ export default function DatasetDetailPage() {
           path: chunkPath.trim() || undefined,
           chunk_size: chunkSize,
           chunk_overlap: chunkOverlap,
+          force: forceExport,
         },
         {
           onSuccess: (data) => {
@@ -853,7 +859,10 @@ export default function DatasetDetailPage() {
       {/* Export Dialog (New) */}
       <Dialog
         isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
+        onClose={() => {
+          setIsExportDialogOpen(false);
+          setForceExport(false);
+        }}
         title="Export Dataset"
         icon="export"
         style={{ borderRadius: 0, backgroundColor: "var(--bg-secondary)", width: 640, maxWidth: "95vw" }}
@@ -940,6 +949,14 @@ export default function DatasetDetailPage() {
               }
             />
           </Tabs>
+          <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
+            <Checkbox
+              checked={forceExport}
+              onChange={(e) => setForceExport((e.target as HTMLInputElement).checked)}
+              label="Force re-export (ignore idempotency and overwrite existing files)"
+              style={{ marginBottom: 0 }}
+            />
+          </div>
         </DialogBody>
         <DialogFooter
           actions={

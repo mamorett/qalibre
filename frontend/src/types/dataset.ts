@@ -34,10 +34,12 @@ export interface AddBooksPayload {
 
 export interface ExportPayload {
   path: string;
+  force?: boolean;
 }
 
 export interface ExportChunkedPayload {
   path?: string;
   chunk_size: number;
   chunk_overlap: number;
+  force?: boolean;
 }

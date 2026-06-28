@@ -63,13 +63,15 @@ type AddBooksRequest struct {
 }
 
 type ExportRequest struct {
-	Path string `json:"path"`
+	Path  string `json:"path"`
+	Force bool   `json:"force"`
 }
 
 type ExportChunkedRequest struct {
 	Path         string `json:"path"`
 	ChunkSize    int    `json:"chunk_size"`
 	ChunkOverlap *int   `json:"chunk_overlap"`
+	Force        bool   `json:"force"`
 }
 
 // ListDatasets handles GET /api/v1/datasets
@@ -814,6 +816,7 @@ func (rm *RouteManager) ExportDataset(w http.ResponseWriter, r *http.Request) {
 	task := &tasks.TaskExportDataset{
 		DatasetID:  datasetID,
 		ExportPath: payload.Path,
+		Force:      payload.Force,
 		UserID:     userID,
 		Cfg:        rm.Cfg,
 	}
@@ -955,6 +958,7 @@ func (rm *RouteManager) ExportDatasetChunked(w http.ResponseWriter, r *http.Requ
 		ExportPath:   path,
 		ChunkSize:    chunkSize,
 		ChunkOverlap: chunkOverlap,
+		Force:        payload.Force,
 		UserID:       userID,
 		Cfg:          rm.Cfg,
 	}

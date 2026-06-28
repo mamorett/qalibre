@@ -2,6 +2,7 @@ package books
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -27,14 +29,14 @@ const MIN_TEXT_CHARS = 64
 
 // ToMarkdown converts a single book file to Markdown text.
 // format = lowercased extension without dot ("txt", "epub", "pdf", "html").
-func ToMarkdown(filePath, format string) (string, error) {
+func ToMarkdown(ctx context.Context, filePath, format string) (string, error) {
 	slog.Info("convert: dispatching format to converter", "format", format, "filePath", filePath)
 	formatLower := strings.ToLower(format)
 	switch formatLower {
 	case "txt":
 		return ToMarkdownFromTxt(filePath)
 	case "epub", "pdf", "html", "htm":
-		res, err := toMarkdownViaPyMuPDF(filePath)
+		res, err := toMarkdownViaPyMuPDF(ctx, filePath)
 		if err != nil {
 			return "", err
 		}
@@ -76,7 +78,7 @@ func cleanUTF8(b []byte) string {
 	return string(r)
 }
 
-func toMarkdownViaPyMuPDF(filePath string) (string, error) {
+func toMarkdownViaPyMuPDF(ctx context.Context, filePath string) (string, error) {
 	slog.Info("convert: converting via pymupdf4llm", "filePath", filePath)
 
 	var cmd *exec.Cmd
@@ -85,10 +87,10 @@ func toMarkdownViaPyMuPDF(filePath string) (string, error) {
 	// 1. Try running direct python3 if pymupdf4llm is already installed
 	if pythonPath, err := exec.LookPath("python3"); err == nil {
 		// Check if pymupdf4llm is importable
-		checkCmd := exec.Command(pythonPath, "-c", "import pymupdf4llm")
+		checkCmd := exec.CommandContext(ctx, pythonPath, "-c", "import pymupdf4llm")
 		if err := checkCmd.Run(); err == nil {
 			slog.Debug("convert: using system python3 with pre-installed pymupdf4llm")
-			cmd = exec.Command(pythonPath, "-c", script, filePath)
+			cmd = exec.CommandContext(ctx, pythonPath, "-c", script, filePath)
 		}
 	}
 
@@ -96,21 +98,21 @@ func toMarkdownViaPyMuPDF(filePath string) (string, error) {
 	if cmd == nil {
 		if uvxPath, err := exec.LookPath("uvx"); err == nil {
 			slog.Debug("convert: falling back to uvx with pymupdf4llm")
-			cmd = exec.Command(uvxPath, "--with", "pymupdf4llm", "python", "-c", script, filePath)
+			cmd = exec.CommandContext(ctx, uvxPath, "--with", "pymupdf4llm", "python", "-c", script, filePath)
 		} else if uvPath, err := exec.LookPath("uv"); err == nil {
 			slog.Debug("convert: falling back to uv run with pymupdf4llm")
-			cmd = exec.Command(uvPath, "run", "--with", "pymupdf4llm", "python", "-c", script, filePath)
+			cmd = exec.CommandContext(ctx, uvPath, "run", "--with", "pymupdf4llm", "python", "-c", script, filePath)
 		} else {
 			// Try a common user fallback path for uvx
 			userUvx := filepath.Join(os.Getenv("HOME"), ".local/bin/uvx")
 			if _, err := os.Stat(userUvx); err == nil {
 				slog.Debug("convert: using local user uvx")
-				cmd = exec.Command(userUvx, "--with", "pymupdf4llm", "python", "-c", script, filePath)
+				cmd = exec.CommandContext(ctx, userUvx, "--with", "pymupdf4llm", "python", "-c", script, filePath)
 			} else {
 				// Final attempt: run python3 directly and hope for the best
 				if pythonPath, err := exec.LookPath("python3"); err == nil {
 					slog.Warn("convert: uv/uvx not found, trying system python3 direct")
-					cmd = exec.Command(pythonPath, "-c", script, filePath)
+					cmd = exec.CommandContext(ctx, pythonPath, "-c", script, filePath)
 				} else {
 					return "", fmt.Errorf("neither 'python3' nor 'uvx'/'uv' was found in PATH to run pymupdf4llm")
 				}
@@ -130,12 +132,15 @@ func toMarkdownViaPyMuPDF(filePath string) (string, error) {
 	return out.String(), nil
 }
 
-func ToChunkedMarkdown(filePath, format string, chunkSize, chunkOverlap int) ([]Chunk, error) {
+func ToChunkedMarkdown(ctx context.Context, filePath, format string, chunkSize, chunkOverlap int) ([]Chunk, error) {
 	// 1. Convert to markdown
-	mdText, err := ToMarkdown(filePath, format)
+	mdText, err := ToMarkdown(ctx, filePath, format)
 	if err != nil {
 		return nil, err
 	}
+
+	// Clean markdown to remove layout artifacts (empty headers and picture omissions)
+	mdText = CleanMarkdownForChunking(mdText)
 
 	// 2. Invoke a Python helper that uses langchain MarkdownTextSplitter to split it.
 	script := `import sys, json
@@ -158,13 +163,13 @@ print(json.dumps({"chunks": chunks}))
 	// Probe system python3 first
 	if pythonPath, err := exec.LookPath("python3"); err == nil {
 		// Check if langchain or langchain-text-splitters is importable
-		checkCmd := exec.Command(pythonPath, "-c", "import langchain_text_splitters")
+		checkCmd := exec.CommandContext(ctx, pythonPath, "-c", "import langchain_text_splitters")
 		if err := checkCmd.Run(); err == nil {
-			cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+			cmd = exec.CommandContext(ctx, pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 		} else {
-			checkCmd2 := exec.Command(pythonPath, "-c", "from langchain.text_splitter import MarkdownTextSplitter")
+			checkCmd2 := exec.CommandContext(ctx, pythonPath, "-c", "from langchain.text_splitter import MarkdownTextSplitter")
 			if err := checkCmd2.Run(); err == nil {
-				cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+				cmd = exec.CommandContext(ctx, pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 			}
 		}
 	}
@@ -173,19 +178,19 @@ print(json.dumps({"chunks": chunks}))
 	if cmd == nil {
 		if uvxPath, err := exec.LookPath("uvx"); err == nil {
 			slog.Debug("convert: using uvx for chunking")
-			cmd = exec.Command(uvxPath, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+			cmd = exec.CommandContext(ctx, uvxPath, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 		} else if uvPath, err := exec.LookPath("uv"); err == nil {
 			slog.Debug("convert: using uv run for chunking")
-			cmd = exec.Command(uvPath, "run", "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+			cmd = exec.CommandContext(ctx, uvPath, "run", "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 		} else {
 			userUvx := filepath.Join(os.Getenv("HOME"), ".local/bin/uvx")
 			if _, err := os.Stat(userUvx); err == nil {
 				slog.Debug("convert: using local user uvx for chunking")
-				cmd = exec.Command(userUvx, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+				cmd = exec.CommandContext(ctx, userUvx, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 			} else {
 				if pythonPath, err := exec.LookPath("python3"); err == nil {
 					slog.Warn("convert: uv/uvx not found, trying system python3 direct for chunking")
-					cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+					cmd = exec.CommandContext(ctx, pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
 				} else {
 					return nil, fmt.Errorf("neither 'python3' nor 'uvx'/'uv' was found in PATH to run langchain text splitter")
 				}
@@ -219,4 +224,50 @@ print(json.dumps({"chunks": chunks}))
 	}
 
 	return chunks, nil
+}
+
+// CleanMarkdownForChunking removes empty markdown headers and "intentionally omitted"
+// placeholders from PyMuPDF, then collapses redundant newlines. This ensures that
+// the text chunker splits actual contiguous text paragraphs rather than layout noise.
+func CleanMarkdownForChunking(md string) string {
+	lines := strings.Split(md, "\n")
+	var cleaned []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty headers (e.g. "#", "##", "###")
+		if isEmptyHeader(trimmed) {
+			continue
+		}
+
+		// Skip image/picture omissions
+		if strings.Contains(trimmed, "intentionally omitted") {
+			continue
+		}
+
+		cleaned = append(cleaned, line)
+	}
+
+	result := strings.Join(cleaned, "\n")
+
+	// Collapse 3 or more newlines into 2
+	re := regexp.MustCompile(`\n{3,}`)
+	result = re.ReplaceAllString(result, "\n\n")
+
+	return result
+}
+
+func isEmptyHeader(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	if s[0] != '#' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] != '#' {
+			return false
+		}
+	}
+	return true
 }

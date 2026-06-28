@@ -23,6 +23,7 @@ type TaskExportDatasetChunked struct {
 	ExportPath   string // already-resolved root directory (absolute)
 	ChunkSize    int
 	ChunkOverlap int
+	Force        bool
 	UserID       int
 	Cfg          *config.Config
 }
@@ -217,12 +218,28 @@ func (t *TaskExportDatasetChunked) Run(ctx context.Context, db interface{}) (err
 			sanitizedTitle = fmt.Sprintf("book_%d", bookID)
 		}
 
+		// Idempotency: Skip if book is already chunked (unless force is requested)
+		chunk001 := filepath.Join(chunkedDir, fmt.Sprintf("%s__chunk_001.md", sanitizedTitle))
+		if !t.Force {
+			if _, err := os.Stat(chunk001); err == nil {
+				slog.Info("export chunked: skipping already chunked book", "taskID", t.TaskID, "bookID", bookID, "file", chunk001)
+				statuses = append(statuses, bookStatus{
+					Title:        book.Title,
+					BookID:       bookID,
+					SourceFormat: ext,
+					Status:       "Skipped",
+					Details:      "Already chunked (chunk_001.md exists)",
+				})
+				continue
+			}
+		}
+
 		slog.Info("export chunked: converting file", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath, "format", ext)
 
 		// If the book is image-only PDF, mark it as Skipped and continue (do NOT try to chunk an empty string)
 		// We first check the format. If PDF, convert to Markdown using standard ToMarkdown first to see if it's image-only
 		if ext == "pdf" {
-			_, checkErr := books.ToMarkdown(filePath, "pdf")
+			_, checkErr := books.ToMarkdown(ctx, filePath, "pdf")
 			if checkErr == books.ErrImageOnlyPDF {
 				slog.Info("export chunked: skipped image-only PDF", "taskID", t.TaskID, "bookID", bookID)
 				statuses = append(statuses, bookStatus{
@@ -244,7 +261,7 @@ func (t *TaskExportDatasetChunked) Run(ctx context.Context, db interface{}) (err
 			formatToUse = ext
 		}
 
-		chunks, convErr := books.ToChunkedMarkdown(filePath, formatToUse, t.ChunkSize, t.ChunkOverlap)
+		chunks, convErr := books.ToChunkedMarkdown(ctx, filePath, formatToUse, t.ChunkSize, t.ChunkOverlap)
 		if convErr != nil {
 			if convErr == books.ErrImageOnlyPDF {
 				slog.Info("export chunked: skipped image-only PDF", "taskID", t.TaskID, "bookID", bookID)
