@@ -514,6 +514,8 @@ func (rm *RouteManager) ListDatasetBooks(w http.ResponseWriter, r *http.Request)
 	for i, b := range booksList {
 		rows[i], _ = rm.buildBookResponse(b, u)
 
+		hasPlain := false
+		hasChunked := false
 		if d.ExportDirectory != "" {
 			sanitizedTitle := sanitizeDatasetFilename(b.Title)
 			if sanitizedTitle == "" {
@@ -528,15 +530,17 @@ func (rm *RouteManager) ListDatasetBooks(w http.ResponseWriter, r *http.Request)
 			// Check plain markdown conversion status
 			bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
 			if _, err := os.Stat(bookFile); err == nil {
-				rows[i].IsConvertedPlain = true
+				hasPlain = true
 			}
 
 			// Check chunked markdown conversion status
 			chunk001 := filepath.Join(targetDir, "chunked", fmt.Sprintf("%s__chunk_001.md", sanitizedTitle))
 			if _, err := os.Stat(chunk001); err == nil {
-				rows[i].IsConvertedChunked = true
+				hasChunked = true
 			}
 		}
+		rows[i].IsConvertedPlain = &hasPlain
+		rows[i].IsConvertedChunked = &hasChunked
 	}
 
 	rm.WriteJSON(w, map[string]interface{}{
