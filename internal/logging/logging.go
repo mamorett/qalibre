@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	DefaultLogFile    = "qalibre.log"
-	DefaultAccessLog  = "access.log"
-	DefaultLogLevel   = slog.LevelInfo
+	DefaultLogFile   = "qalibre.log"
+	DefaultAccessLog = "access.log"
+	DefaultLogLevel  = slog.LevelInfo
 )
 
 // Setup initialises the default slog handler writing to both a rotating

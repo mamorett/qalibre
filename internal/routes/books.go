@@ -17,29 +17,29 @@ import (
 
 // BookResponse format matching the AlchemyEncoder serialization contract byte-for-byte.
 type BookResponse struct {
-	ID            int                      `json:"id"`
-	Title         string                   `json:"title"`
-	Sort          string                   `json:"sort"`
-	AuthorSort    string                   `json:"author_sort"`
-	Timestamp     string                   `json:"timestamp"`
-	Pubdate       string                   `json:"pubdate"`
-	SeriesIndex   string                   `json:"series_index"`
-	LastModified  string                   `json:"last_modified"`
-	Path          string                   `json:"path"`
-	HasCover      bool                     `json:"has_cover"`
-	UUID          string                   `json:"uuid"`
-	Authors       string                   `json:"authors"`
-	AuthorsList   []string                 `json:"authors_list"`
-	Tags          string                   `json:"tags"`
-	TagsList      []string                 `json:"tags_list"`
-	Series        *string                  `json:"series"`
-	Publisher     *string                  `json:"publisher"`
-	Comments      string                   `json:"comments"`
-	Formats       []FormatResponse         `json:"formats"`
-	Identifiers   []IdentifierResponse     `json:"identifiers"`
-	IsArchived    bool                     `json:"is_archived"`
-	ReadStatus    bool                     `json:"read_status"`
-	Shelves       []int                    `json:"shelves"`
+	ID            int                       `json:"id"`
+	Title         string                    `json:"title"`
+	Sort          string                    `json:"sort"`
+	AuthorSort    string                    `json:"author_sort"`
+	Timestamp     string                    `json:"timestamp"`
+	Pubdate       string                    `json:"pubdate"`
+	SeriesIndex   string                    `json:"series_index"`
+	LastModified  string                    `json:"last_modified"`
+	Path          string                    `json:"path"`
+	HasCover      bool                      `json:"has_cover"`
+	UUID          string                    `json:"uuid"`
+	Authors       string                    `json:"authors"`
+	AuthorsList   []string                  `json:"authors_list"`
+	Tags          string                    `json:"tags"`
+	TagsList      []string                  `json:"tags_list"`
+	Series        *string                   `json:"series"`
+	Publisher     *string                   `json:"publisher"`
+	Comments      string                    `json:"comments"`
+	Formats       []FormatResponse          `json:"formats"`
+	Identifiers   []IdentifierResponse      `json:"identifiers"`
+	IsArchived    bool                      `json:"is_archived"`
+	ReadStatus    bool                      `json:"read_status"`
+	Shelves       []int                     `json:"shelves"`
 	CustomColumns []CustomColumnValResponse `json:"custom_columns"`
 }
 
@@ -224,22 +224,22 @@ func (rm *RouteManager) checkCustomColumnInValues(bookID int, colID int, vals []
 // buildBookResponse constructs a complete BookResponse for a single book.
 func (rm *RouteManager) buildBookResponse(book calibredb.Book, u *appdb.User) (BookResponse, error) {
 	resp := BookResponse{
-		ID:           book.ID,
-		Title:        book.Title,
-		Sort:         book.Sort,
-		AuthorSort:   book.AuthorSort,
-		Timestamp:    book.Timestamp.Format("2006-01-02 15:04:05"),
-		Pubdate:      book.Pubdate.Format("2006-01-02 15:04:05"),
-		SeriesIndex:  book.SeriesIndex,
-		LastModified: book.LastModified.Format("2006-01-02 15:04:05"),
-		Path:         book.Path,
-		HasCover:     book.HasCover == 1,
-		UUID:         book.UUID,
-		AuthorsList:  []string{},
-		TagsList:     []string{},
-		Formats:      []FormatResponse{},
-		Identifiers:  []IdentifierResponse{},
-		Shelves:      []int{},
+		ID:            book.ID,
+		Title:         book.Title,
+		Sort:          book.Sort,
+		AuthorSort:    book.AuthorSort,
+		Timestamp:     book.Timestamp.Format("2006-01-02 15:04:05"),
+		Pubdate:       book.Pubdate.Format("2006-01-02 15:04:05"),
+		SeriesIndex:   book.SeriesIndex,
+		LastModified:  book.LastModified.Format("2006-01-02 15:04:05"),
+		Path:          book.Path,
+		HasCover:      book.HasCover == 1,
+		UUID:          book.UUID,
+		AuthorsList:   []string{},
+		TagsList:      []string{},
+		Formats:       []FormatResponse{},
+		Identifiers:   []IdentifierResponse{},
+		Shelves:       []int{},
 		CustomColumns: []CustomColumnValResponse{},
 	}
 

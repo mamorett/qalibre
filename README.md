@@ -53,11 +53,58 @@ To run Qalibre from source or enable native document conversions, the following 
 
 ---
 
+## 🏗️ Gödel Build System
+
+This project uses **[Palantir gödel](https://github.com/palantir/godel)** via the [godelw](file:///gorgon/dev/qalibre/godelw) wrapper script as its build tool. Gödel manages formatting, static analysis, testing, cross-compilation, and distribution.
+
+### Quick build commands
+
+All commands are run using the [godelw](file:///gorgon/dev/qalibre/godelw) script:
+
+```bash
+# Format all Go files
+./godelw format
+
+# Run static analysis (compiles, govet, errcheck, etc.)
+./godelw check
+
+# Run all tests
+./godelw test
+
+# Full verification (format + check + test)
+./godelw verify
+
+# Build executables for all configured target platforms
+./godelw build
+
+# Build executable only for a specific target platform (e.g. linux-amd64)
+./godelw build --os-arch linux-amd64
+
+# Create distribution archives for all platforms
+./godelw dist
+```
+
+### Target platforms
+
+The `qalibre` product is configured for cross-compilation under [godel/config/dist-plugin.yml](file:///gorgon/dev/qalibre/godel/config/dist-plugin.yml) for the following platforms:
+
+| OS | Arch | Output (via `./godelw dist`) |
+| --- | --- | --- |
+| Linux | `amd64` | `qalibre-linux-amd64.tar.gz` |
+| Linux | `arm64` | `qalibre-linux-arm64.tar.gz` |
+| macOS | `arm64` | `qalibre-darwin-arm64.tar.gz` |
+| Windows | `amd64` | `qalibre-windows-amd64.zip` |
+| Windows | `arm64` | `qalibre-windows-arm64.zip` |
+
+Build artifacts are placed in `out/build/` and can be inspected with `./godelw build` or bundled into release-ready archives in `out/dist/` with `./godelw dist`.
+
+---
+
 ## 🚀 Getting Started
 
 ### Running with Docker (Recommended)
 
-To run Qalibre instantly in a self-contained container with all dependencies pre-installed:
+To run Qalibre instantly in a self-contained container with all dependencies pre-installed using the [Dockerfile](file:///gorgon/dev/qalibre/Dockerfile):
 
 1.  **Build the Image**:
     ```bash
@@ -93,11 +140,26 @@ cd ..
 ```
 
 #### 2. Compile and Launch the Go Server
-Ensure you have **Go 1.22+** installed:
+Ensure you have **Go 1.22+** installed. [godelw](file:///gorgon/dev/qalibre/godelw) handles the Go build:
+
 ```bash
-go mod download
-go build -o qalibre ./cmd/qalibre
-./qalibre
+# Verify everything (format + check + test)
+./godelw verify
+
+# Build for all target platforms (cross-compilation)
+./godelw build
+
+# Run the Linux binary directly (after building for all platforms)
+./out/build/qalibre/unspecified/linux-amd64/qalibre
+```
+
+For a quick single-platform build (local development):
+```bash
+# Build only for a specific platform (e.g., linux-amd64 or darwin-arm64)
+./godelw build --os-arch linux-amd64
+
+# Or build only for the host platform using the standard Go compiler:
+CGO_ENABLED=0 go build -o qalibre ./cmd/qalibre
 ```
 
 ---

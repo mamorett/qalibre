@@ -15,8 +15,8 @@ import (
 // TaskUpload status marker task
 type TaskUpload struct{}
 
-func (t *TaskUpload) Name() string          { return "Upload Book" }
-func (t *TaskUpload) IsCancellable() bool   { return false }
+func (t *TaskUpload) Name() string        { return "Upload Book" }
+func (t *TaskUpload) IsCancellable() bool { return false }
 func (t *TaskUpload) Run(ctx context.Context, db interface{}) error {
 	// Status-marker only; complete immediately
 	return nil
@@ -27,8 +27,8 @@ type TaskReconnectDatabase struct {
 	MetaDBPath string
 }
 
-func (t *TaskReconnectDatabase) Name() string          { return "Reconnect Database" }
-func (t *TaskReconnectDatabase) IsCancellable() bool   { return false }
+func (t *TaskReconnectDatabase) Name() string        { return "Reconnect Database" }
+func (t *TaskReconnectDatabase) IsCancellable() bool { return false }
 func (t *TaskReconnectDatabase) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running reconnect database task")
 	sqlxDB, ok := db.(*sqlx.DB)
@@ -41,8 +41,8 @@ func (t *TaskReconnectDatabase) Run(ctx context.Context, db interface{}) error {
 // TaskClean deletes temp folder files and expired sessions
 type TaskClean struct{}
 
-func (t *TaskClean) Name() string          { return "Clean Cache & Expired Sessions" }
-func (t *TaskClean) IsCancellable() bool   { return false }
+func (t *TaskClean) Name() string        { return "Clean Cache & Expired Sessions" }
+func (t *TaskClean) IsCancellable() bool { return false }
 func (t *TaskClean) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running clean cache task")
 	sqlxDB, ok := db.(*sqlx.DB)
@@ -62,8 +62,8 @@ func (t *TaskClean) Run(ctx context.Context, db interface{}) error {
 // TaskBackupMetadata stub
 type TaskBackupMetadata struct{}
 
-func (t *TaskBackupMetadata) Name() string          { return "Backup Metadata" }
-func (t *TaskBackupMetadata) IsCancellable() bool   { return true }
+func (t *TaskBackupMetadata) Name() string        { return "Backup Metadata" }
+func (t *TaskBackupMetadata) IsCancellable() bool { return true }
 func (t *TaskBackupMetadata) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running metadata backup task (stub)")
 	return nil
@@ -72,8 +72,8 @@ func (t *TaskBackupMetadata) Run(ctx context.Context, db interface{}) error {
 // TaskGenerateCoverThumbnails stub
 type TaskGenerateCoverThumbnails struct{}
 
-func (t *TaskGenerateCoverThumbnails) Name() string          { return "Generate Cover Thumbnails" }
-func (t *TaskGenerateCoverThumbnails) IsCancellable() bool   { return true }
+func (t *TaskGenerateCoverThumbnails) Name() string        { return "Generate Cover Thumbnails" }
+func (t *TaskGenerateCoverThumbnails) IsCancellable() bool { return true }
 func (t *TaskGenerateCoverThumbnails) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running cover thumbnail generation task (stub)")
 	return nil
@@ -82,8 +82,8 @@ func (t *TaskGenerateCoverThumbnails) Run(ctx context.Context, db interface{}) e
 // TaskGenerateSeriesThumbnails stub
 type TaskGenerateSeriesThumbnails struct{}
 
-func (t *TaskGenerateSeriesThumbnails) Name() string          { return "Generate Series Thumbnails" }
-func (t *TaskGenerateSeriesThumbnails) IsCancellable() bool   { return true }
+func (t *TaskGenerateSeriesThumbnails) Name() string        { return "Generate Series Thumbnails" }
+func (t *TaskGenerateSeriesThumbnails) IsCancellable() bool { return true }
 func (t *TaskGenerateSeriesThumbnails) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running series thumbnail generation task (stub)")
 	return nil
@@ -92,8 +92,8 @@ func (t *TaskGenerateSeriesThumbnails) Run(ctx context.Context, db interface{}) 
 // TaskClearCoverThumbnailCache stub
 type TaskClearCoverThumbnailCache struct{}
 
-func (t *TaskClearCoverThumbnailCache) Name() string          { return "Clear Cover Thumbnail Cache" }
-func (t *TaskClearCoverThumbnailCache) IsCancellable() bool   { return false }
+func (t *TaskClearCoverThumbnailCache) Name() string        { return "Clear Cover Thumbnail Cache" }
+func (t *TaskClearCoverThumbnailCache) IsCancellable() bool { return false }
 func (t *TaskClearCoverThumbnailCache) Run(ctx context.Context, db interface{}) error {
 	slog.Info("running clear cover thumbnail cache task (stub)")
 	return nil

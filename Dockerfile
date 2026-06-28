@@ -9,20 +9,34 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# --- Stage 2: Build the Go Backend ---
+# --- Stage 2: Build the Go Backend via gödel ---
 FROM golang:1.25-alpine AS backend-builder
+ARG TARGETARCH
 WORKDIR /build
+
+# Install build-time dependencies required by godelw
+RUN apk add --no-cache bash curl git tar
 
 # Copy go mod and dependencies
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy backend source files
+# Copy godel wrapper and config
+COPY godelw ./
+COPY godel/ ./godel/
+RUN chmod +x godelw
+
+# Copy source files
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 
-# Build static Go binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o qalibre ./cmd/qalibre
+# Build with gödel for the target platform only
+# CGO_ENABLED=0 ensures fully static binaries
+RUN ./godelw build --os-arch linux-${TARGETARCH}
+
+# Locate the linux binary matching this build's architecture and copy it to
+# a predictable path so Stage 3 can COPY from a fixed, unambiguous location.
+RUN cp out/build/qalibre/*/linux-${TARGETARCH}/qalibre qalibre
 
 # --- Stage 3: Create the final runtime container ---
 FROM alpine:3.18 AS runtime
@@ -35,7 +49,8 @@ RUN apk add --no-cache \
     p7zip \
     poppler-utils
 
-# Copy Go binary from backend-builder
+# Copy the linux binary produced in Stage 2 for the target architecture.
+# Stage 2 cp'd it to /build/qalibre so this path is stable and unambiguous.
 COPY --from=backend-builder /build/qalibre /app/qalibre
 
 # Copy built frontend assets and public assets from frontend-builder stage

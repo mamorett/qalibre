@@ -15,22 +15,23 @@ import (
 )
 
 // STABLE_VERSION mirrors cps/constants.py:STABLE_VERSION.
-const STABLE_VERSION = "0.7.0-go"
+// It is defined as a var so that the gödel build system can override it at build time.
+var STABLE_VERSION = "0.7.0-go"
 
 // Default values (mirroring cps/config_sql.py defaults).
 const (
-	DefaultPort        = 8083
+	DefaultPort         = 8083
 	DefaultBooksPerPage = 60
-	DefaultTitleRegex  = `^(A|The|An|Der|Die|Das|Den|Ein|Eine|Einen|Dem|Des|Einem|Eines|Le|La|Les|L'|Un|Une)(\s+|(?<='))`
-	DefaultLogLevel    = "INFO"
-	DefaultLogFile     = "qalibre.log"
-	DefaultAccessLog   = "access.log"
+	DefaultTitleRegex   = `^(A|The|An|Der|Die|Das|Den|Ein|Eine|Einen|Dem|Des|Einem|Eines|Le|La|Les|L'|Un|Une)(\s+|(?<='))`
+	DefaultLogLevel     = "INFO"
+	DefaultLogFile      = "qalibre.log"
+	DefaultAccessLog    = "access.log"
 
 	LoginStandard = 0
 	LoginLDAP     = 1
 	LoginOAuth    = 2 // treated as standard (dropped)
 
-	AdminUserRoles = RoleAdmin | RoleDownload | RoleUpload | RoleEdit | RolePasswd | RoleEditShelfs | RoleDeleteBooks | RoleViewer
+	AdminUserRoles   = RoleAdmin | RoleDownload | RoleUpload | RoleEdit | RolePasswd | RoleEditShelfs | RoleDeleteBooks | RoleViewer
 	AdminUserSidebar = (SidebarList << 1) - 1
 )
 
@@ -49,24 +50,24 @@ const (
 
 // Sidebar bitfields (cps/constants.py:83-100).
 const (
-	DetailRandom       = 1 << 0
-	SidebarLanguage    = 1 << 1
-	SidebarSeries      = 1 << 2
-	SidebarCategory    = 1 << 3
-	SidebarHot         = 1 << 4
-	SidebarRandom      = 1 << 5
-	SidebarAuthor      = 1 << 6
-	SidebarBestRated   = 1 << 7
-	SidebarReadUnread  = 1 << 8
-	SidebarRecent      = 1 << 9
-	SidebarSorted      = 1 << 10
-	MatureContent      = 1 << 11
-	SidebarPublisher   = 1 << 12
-	SidebarRating      = 1 << 13
-	SidebarFormat      = 1 << 14
-	SidebarArchived    = 1 << 15
-	SidebarDownload    = 1 << 16
-	SidebarList        = 1 << 17
+	DetailRandom      = 1 << 0
+	SidebarLanguage   = 1 << 1
+	SidebarSeries     = 1 << 2
+	SidebarCategory   = 1 << 3
+	SidebarHot        = 1 << 4
+	SidebarRandom     = 1 << 5
+	SidebarAuthor     = 1 << 6
+	SidebarBestRated  = 1 << 7
+	SidebarReadUnread = 1 << 8
+	SidebarRecent     = 1 << 9
+	SidebarSorted     = 1 << 10
+	MatureContent     = 1 << 11
+	SidebarPublisher  = 1 << 12
+	SidebarRating     = 1 << 13
+	SidebarFormat     = 1 << 14
+	SidebarArchived   = 1 << 15
+	SidebarDownload   = 1 << 16
+	SidebarList       = 1 << 17
 )
 
 // ExtensionsUpload lists allowed upload formats (audio removed).
@@ -93,22 +94,22 @@ var ExtensionsConvertTo = []string{
 // still present in the DB; we just don't touch them.
 type Settings struct {
 	// Core calibre settings
-	ConfigCalibreDir       *string `db:"config_calibre_dir"`
-	ConfigCalibreUUID      *string `db:"config_calibre_uuid"`
-	ConfigCalibreSplit     bool    `db:"config_calibre_split"`
-	ConfigCalibreSplitDir  *string `db:"config_calibre_split_dir"`
-	ConfigPort             int     `db:"config_port"`
-	ConfigExternalPort     int     `db:"config_external_port"`
-	ConfigCertFile         *string `db:"config_certfile"`
-	ConfigKeyFile          *string `db:"config_keyfile"`
-	ConfigTrustedHosts     string  `db:"config_trustedhosts"`
-	ConfigCalibreWebTitle  string  `db:"config_calibre_web_title"`
-	ConfigBooksPerPage     int     `db:"config_books_per_page"`
-	ConfigRandomBooks      int     `db:"config_random_books"`
-	ConfigAuthorsMax       int     `db:"config_authors_max"`
-	ConfigReadColumn       int     `db:"config_read_column"`
-	ConfigTitleRegex       string  `db:"config_title_regex"`
-	ConfigTheme            int     `db:"config_theme"`
+	ConfigCalibreDir      *string `db:"config_calibre_dir"`
+	ConfigCalibreUUID     *string `db:"config_calibre_uuid"`
+	ConfigCalibreSplit    bool    `db:"config_calibre_split"`
+	ConfigCalibreSplitDir *string `db:"config_calibre_split_dir"`
+	ConfigPort            int     `db:"config_port"`
+	ConfigExternalPort    int     `db:"config_external_port"`
+	ConfigCertFile        *string `db:"config_certfile"`
+	ConfigKeyFile         *string `db:"config_keyfile"`
+	ConfigTrustedHosts    string  `db:"config_trustedhosts"`
+	ConfigCalibreWebTitle string  `db:"config_calibre_web_title"`
+	ConfigBooksPerPage    int     `db:"config_books_per_page"`
+	ConfigRandomBooks     int     `db:"config_random_books"`
+	ConfigAuthorsMax      int     `db:"config_authors_max"`
+	ConfigReadColumn      int     `db:"config_read_column"`
+	ConfigTitleRegex      string  `db:"config_title_regex"`
+	ConfigTheme           int     `db:"config_theme"`
 
 	// Logging
 	ConfigLogLevel      int    `db:"config_log_level"`
@@ -117,21 +118,21 @@ type Settings struct {
 	ConfigAccessLogFile string `db:"config_access_logfile"`
 
 	// Feature flags
-	ConfigUploading  int  `db:"config_uploading"`
-	ConfigAnonBrowse int  `db:"config_anonbrowse"`
-	ConfigPublicReg  int  `db:"config_public_reg"`
+	ConfigUploading  int `db:"config_uploading"`
+	ConfigAnonBrowse int `db:"config_anonbrowse"`
+	ConfigPublicReg  int `db:"config_public_reg"`
 
 	// New-user defaults
-	ConfigDefaultRole         int    `db:"config_default_role"`
-	ConfigDefaultShow         int    `db:"config_default_show"`
-	ConfigDefaultLanguage     string `db:"config_default_language"`
-	ConfigDefaultLocale       string `db:"config_default_locale"`
-	ConfigColumnsToIgnore     string `db:"config_columns_to_ignore"`
-	ConfigDeniedTags          string `db:"config_denied_tags"`
-	ConfigAllowedTags         string `db:"config_allowed_tags"`
-	ConfigRestrictedColumn    int    `db:"config_restricted_column"`
-	ConfigDeniedColumnValue   string `db:"config_denied_column_value"`
-	ConfigAllowedColumnValue  string `db:"config_allowed_column_value"`
+	ConfigDefaultRole        int    `db:"config_default_role"`
+	ConfigDefaultShow        int    `db:"config_default_show"`
+	ConfigDefaultLanguage    string `db:"config_default_language"`
+	ConfigDefaultLocale      string `db:"config_default_locale"`
+	ConfigColumnsToIgnore    string `db:"config_columns_to_ignore"`
+	ConfigDeniedTags         string `db:"config_denied_tags"`
+	ConfigAllowedTags        string `db:"config_allowed_tags"`
+	ConfigRestrictedColumn   int    `db:"config_restricted_column"`
+	ConfigDeniedColumnValue  string `db:"config_denied_column_value"`
+	ConfigAllowedColumnValue string `db:"config_allowed_column_value"`
 
 	// Auth
 	ConfigLoginType int `db:"config_login_type"`
@@ -175,26 +176,26 @@ type Settings struct {
 	ConfigAllowReverseProxyHeaderLogin bool   `db:"config_allow_reverse_proxy_header_login"`
 
 	// Scheduler
-	ScheduleStartTime             int  `db:"schedule_start_time"`
-	ScheduleDuration              int  `db:"schedule_duration"`
-	ScheduleGenerateBookCovers    bool `db:"schedule_generate_book_covers"`
-	ScheduleGenerateSeriesCovers  bool `db:"schedule_generate_series_covers"`
-	ScheduleReconnect             bool `db:"schedule_reconnect"`
-	ScheduleMetadataBackup        bool `db:"schedule_metadata_backup"`
+	ScheduleStartTime            int  `db:"schedule_start_time"`
+	ScheduleDuration             int  `db:"schedule_duration"`
+	ScheduleGenerateBookCovers   bool `db:"schedule_generate_book_covers"`
+	ScheduleGenerateSeriesCovers bool `db:"schedule_generate_series_covers"`
+	ScheduleReconnect            bool `db:"schedule_reconnect"`
+	ScheduleMetadataBackup       bool `db:"schedule_metadata_backup"`
 
 	// Security policy
-	ConfigPasswordPolicy   bool   `db:"config_password_policy"`
-	ConfigPasswordMinLength int   `db:"config_password_min_length"`
-	ConfigPasswordNumber   bool   `db:"config_password_number"`
-	ConfigPasswordLower    bool   `db:"config_password_lower"`
-	ConfigPasswordUpper    bool   `db:"config_password_upper"`
-	ConfigPasswordCharacter bool  `db:"config_password_character"`
-	ConfigPasswordSpecial  bool   `db:"config_password_special"`
-	ConfigSession          int    `db:"config_session"`
-	ConfigRateLimiter      bool   `db:"config_ratelimiter"`
-	ConfigLimiterURI       string `db:"config_limiter_uri"`
-	ConfigLimiterOptions   string `db:"config_limiter_options"`
-	ConfigCheckExtensions  bool   `db:"config_check_extensions"`
+	ConfigPasswordPolicy    bool   `db:"config_password_policy"`
+	ConfigPasswordMinLength int    `db:"config_password_min_length"`
+	ConfigPasswordNumber    bool   `db:"config_password_number"`
+	ConfigPasswordLower     bool   `db:"config_password_lower"`
+	ConfigPasswordUpper     bool   `db:"config_password_upper"`
+	ConfigPasswordCharacter bool   `db:"config_password_character"`
+	ConfigPasswordSpecial   bool   `db:"config_password_special"`
+	ConfigSession           int    `db:"config_session"`
+	ConfigRateLimiter       bool   `db:"config_ratelimiter"`
+	ConfigLimiterURI        string `db:"config_limiter_uri"`
+	ConfigLimiterOptions    string `db:"config_limiter_options"`
+	ConfigCheckExtensions   bool   `db:"config_check_extensions"`
 }
 
 // Config wraps Settings with a db handle and dirty-tracking mutex.
@@ -573,4 +574,3 @@ func sanitizeSettings(db *sqlx.DB) {
 		config_limiter_options = COALESCE(config_limiter_options, ''),
 		config_check_extensions = COALESCE(config_check_extensions, 0)`)
 }
-

@@ -1,6 +1,8 @@
 package calibredb
 
-import "time"
+import (
+	"time"
+)
 
 // LibraryId table
 type LibraryId struct {

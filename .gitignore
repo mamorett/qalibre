@@ -62,3 +62,8 @@ build_test
 goto.md
 graphify-out
 .qwen
+_godel
+
+### Gödel (build tool) ###
+out/
+godel/bin/
