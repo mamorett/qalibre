@@ -134,6 +134,7 @@ func (s *Server) spaRedirectMiddleware(next http.Handler) http.Handler {
 			strings.HasPrefix(path, "/read/") ||
 			strings.HasPrefix(path, "/shelf/") ||
 			strings.HasPrefix(path, "/get_") ||
+			path == "/logo.png" ||
 			path == "/favicon.ico" ||
 			path == "/robots.txt" ||
 			path == "/apple-touch-icon.png" {
@@ -178,6 +179,14 @@ func (s *Server) ServeSPA() {
 	// Serve static public assets
 	publicDir := filepath.Join(filepath.Dir(s.FrontDir), "public")
 	s.Router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(publicDir))))
+
+	// Serve specific static public assets at root
+	s.Router.Get("/logo.png", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(publicDir, "logo.png"))
+	})
+	s.Router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(publicDir, "favicon.ico"))
+	})
 
 	// Serve files under /spa from s.FrontDir
 	s.Router.HandleFunc("/spa*", func(w http.ResponseWriter, r *http.Request) {

@@ -450,16 +450,22 @@ export function Layout() {
         }}
       >
         <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div>
-            <h4 style={{ margin: "0 0 0.5rem 0" }}>Qalibre Document Manager</h4>
-            <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "0.5rem" }}>
+            <img
+              src="/logo.png"
+              alt="Qalibre Logo"
+              width="140"
+              style={{ borderRadius: 0, boxShadow: "0 4px 10px rgba(0, 0, 0, 0.15)", marginBottom: "1rem" }}
+            />
+            <h4 style={{ margin: "0 0 0.5rem 0", textAlign: "center" }}>Qalibre Document Manager</h4>
+            <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-secondary)", textAlign: "center" }}>
               A high-performance document database manager built for AI dataset preparation and library curation.
             </p>
           </div>
           
           <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "1rem" }}>
             <p style={{ margin: "0 0 0.5rem 0" }}>
-              <strong>Version:</strong> {stats?.version || "Loading..."}
+              <strong>Version:</strong> {stats?.version && stats.version !== "unspecified" ? stats.version : "0.7.0-go (development)"}
             </p>
             <p style={{ margin: "0 0 0.5rem 0" }}>
               <strong>Author:</strong> Developed and ported to Go by <a href="https://github.com/mamorett" target="_blank" rel="noopener noreferrer">@mamorett</a>
