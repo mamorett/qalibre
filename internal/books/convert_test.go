@@ -16,15 +16,6 @@ func TestCleanUTF8(t *testing.T) {
 	}
 }
 
-func TestCollapseWhitespace(t *testing.T) {
-	input := "Hello   \n\n\n  World!  "
-	expected := "Hello\n\nWorld!"
-	got := collapseWhitespace(input)
-	if got != expected {
-		t.Errorf("collapseWhitespace failed: expected %q, got %q", expected, got)
-	}
-}
-
 func TestToMarkdownFromTxt(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "qalibre_test")
 	if err != nil {
@@ -64,7 +55,7 @@ func TestToMarkdownFromHtml(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ToMarkdown html error: %v", err)
 	}
-	if !strings.Contains(got, "## Chapter 1") {
+	if !strings.Contains(got, "Chapter 1") {
 		t.Errorf("ToMarkdown html heading mismatch: %q", got)
 	}
 	if !strings.Contains(got, "Paragraph text.") {

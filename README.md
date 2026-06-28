@@ -32,7 +32,7 @@ The primary goal of Qalibre is to act as a **dataset preparation pipeline** for 
 *   **⚡ High Performance:** Rebuilt with a Go backend for high-throughput queries and sub-millisecond database lookups.
 *   **🎨 Premium UI:** Responsive Single Page Application (SPA) frontend styled using Palantir Blueprint v6 with modern dark-mode aesthetics.
 *   **📊 Dataset Curation:** Build custom document datasets for AI model training. Edit EAV metadata entries (keys, values, and types including strings, numbers, timestamps, paths) and manage books using a customizable pagination modal (5, 10, 20, 50, or 100 entries).
-*   **📝 Markdown Exporter:** Export complete datasets to structured Markdown directories. Books are converted (TXT, HTML, EPUB, and PDF) with YAML front-matter metadata, accompanied by a central `dataset.md` index file.
+*   **📝 Markdown Exporter:** Export complete datasets to structured Markdown directories. Powered by **PyMuPDF (`pymupdf4llm`)**, books (PDF, EPUB, and HTML) are converted to high-fidelity Markdown (supporting multi-column layouts and structured tables) with YAML front-matter metadata, accompanied by a central `dataset.md` index file.
 *   **⚡ Idempotent Pipeline:** Subsequent exports are extremely fast, skipping already-converted book files to allow incremental dataset additions.
 *   **🔄 Background Task Queue:** Triggers exports asynchronously. Shows real-time progress bars, step-by-step processing messages, and lets you cancel tasks directly from the UI.
 *   **📁 Upload Pipeline:** Drag-and-drop file upload with automated metadata parsing (OPF/container mapping) for `.epub` and `.pdf` files.
@@ -47,7 +47,7 @@ To run Qalibre from source or enable native document conversions, the following 
 
 | Dependency | Purpose | Installation (Ubuntu/Debian) | Installation (macOS) | Installation (Alpine) |
 | :--- | :--- | :--- | :--- | :--- |
-| **`pdftotext`** | High-fidelity PDF text extraction | `sudo apt install poppler-utils` | `brew install poppler` | `apk add poppler-utils` |
+| **`uv`** (or **`pymupdf4llm`**) | Markdown conversion engine (PDF, EPUB, HTML) | `curl -LsSf https://astral.sh/uv/install.sh | sh` or `pip install pymupdf4llm` | `brew install uv` or `pip install pymupdf4llm` | `apk add uv` (edge) or copy from docker image |
 | **`imagemagick`** | Cover page thumbnail generation | `sudo apt install imagemagick` | `brew install imagemagick` | `apk add imagemagick` |
 | **`p7zip`** | comic book archive parsing | `sudo apt install p7zip-full` | `brew install p7zip` | `apk add p7zip` |
 
@@ -129,6 +129,23 @@ To run Qalibre instantly in a self-contained container with all dependencies pre
 ---
 
 ### Building from Source
+
+#### 0. Install Python & PyMuPDF4LLM (Local Development)
+Ensure you have **Python 3.10+** and either **uv** or **pymupdf4llm** CLI installed and available in your `PATH`.
+
+Using `uv` (recommended):
+```bash
+# Verify uv is installed
+uv --version
+```
+Qalibre will automatically run pymupdf4llm via `uvx` if not installed globally.
+
+Or install pymupdf4llm directly:
+```bash
+pip install pymupdf4llm
+# Or via pipx
+pipx install pymupdf4llm
+```
 
 #### 1. Compile the React Frontend SPA
 Ensure you have **Node.js 20+** installed:
