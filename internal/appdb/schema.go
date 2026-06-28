@@ -203,13 +203,14 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 			config_check_extensions INTEGER
 		)`,
 		`CREATE TABLE IF NOT EXISTS dataset (
-			id            INTEGER PRIMARY KEY AUTOINCREMENT,
-			uuid          TEXT UNIQUE,
-			name          TEXT NOT NULL,
-			description   TEXT DEFAULT '',
-			user_id       INTEGER,
-			created       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			id               INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid             TEXT UNIQUE,
+			name             TEXT NOT NULL,
+			description      TEXT DEFAULT '',
+			export_directory TEXT NOT NULL DEFAULT '',
+			user_id          INTEGER,
+			created          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_modified    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS dataset_book (
 			id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,6 +235,33 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 	for _, query := range schemaQueries {
 		if _, err := db.Exec(query); err != nil {
 			return err
+		}
+	}
+
+	// Idempotent migration check for export_directory in dataset table
+	var hasExportDir bool
+	rows, err := db.Query("PRAGMA table_info(dataset)")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var cid int
+			var name string
+			var typeStr string
+			var notnull int
+			var dfltVal interface{}
+			var pk int
+			if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltVal, &pk); err == nil {
+				if name == "export_directory" {
+					hasExportDir = true
+				}
+			}
+		}
+	}
+	if !hasExportDir {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN export_directory TEXT NOT NULL DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add export_directory", "err", err)
+		} else {
+			slog.Info("appdb: added export_directory column to dataset table")
 		}
 	}
 

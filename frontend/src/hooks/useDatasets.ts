@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { datasetsApi, BookListQ } from "../api/client";
-import { CreateDatasetPayload, ExportPayload } from "../types/dataset";
+import { CreateDatasetPayload, ExportPayload, ExportChunkedPayload } from "../types/dataset";
 
 export function useDatasets(search?: string) {
   return useQuery({
@@ -93,6 +93,12 @@ export function useRemoveBookFromDataset(id: number) {
 export function useExportDataset(id: number) {
   return useMutation({
     mutationFn: (p: ExportPayload) => datasetsApi.export(id, p),
+  });
+}
+
+export function useExportChunkedDataset(id: number) {
+  return useMutation({
+    mutationFn: (p: ExportChunkedPayload) => datasetsApi.exportChunked(id, p),
   });
 }
 

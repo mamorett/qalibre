@@ -2,6 +2,7 @@ package books
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,12 @@ import (
 	"strings"
 	"unicode/utf8"
 )
+
+// Chunk is one chunk of markdown text with provenance metadata.
+type Chunk struct {
+	Index int    // 1-based index within the book
+	Text  string // chunk body (without front matter)
+}
 
 var (
 	ErrImageOnlyPDF = errors.New("image-only PDF skipped")
@@ -121,4 +128,95 @@ func toMarkdownViaPyMuPDF(filePath string) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+func ToChunkedMarkdown(filePath, format string, chunkSize, chunkOverlap int) ([]Chunk, error) {
+	// 1. Convert to markdown
+	mdText, err := ToMarkdown(filePath, format)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Invoke a Python helper that uses langchain MarkdownTextSplitter to split it.
+	script := `import sys, json
+try:
+    from langchain_text_splitters import MarkdownTextSplitter
+except ImportError:
+    from langchain.text_splitter import MarkdownTextSplitter
+
+md_text = sys.stdin.read()
+chunk_size = int(sys.argv[1])
+chunk_overlap = int(sys.argv[2])
+
+splitter = MarkdownTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+chunks = splitter.split_text(md_text)
+print(json.dumps({"chunks": chunks}))
+`
+
+	var cmd *exec.Cmd
+
+	// Probe system python3 first
+	if pythonPath, err := exec.LookPath("python3"); err == nil {
+		// Check if langchain or langchain-text-splitters is importable
+		checkCmd := exec.Command(pythonPath, "-c", "import langchain_text_splitters")
+		if err := checkCmd.Run(); err == nil {
+			cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+		} else {
+			checkCmd2 := exec.Command(pythonPath, "-c", "from langchain.text_splitter import MarkdownTextSplitter")
+			if err := checkCmd2.Run(); err == nil {
+				cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+			}
+		}
+	}
+
+	// Fallback to uvx / uv run
+	if cmd == nil {
+		if uvxPath, err := exec.LookPath("uvx"); err == nil {
+			slog.Debug("convert: using uvx for chunking")
+			cmd = exec.Command(uvxPath, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+		} else if uvPath, err := exec.LookPath("uv"); err == nil {
+			slog.Debug("convert: using uv run for chunking")
+			cmd = exec.Command(uvPath, "run", "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+		} else {
+			userUvx := filepath.Join(os.Getenv("HOME"), ".local/bin/uvx")
+			if _, err := os.Stat(userUvx); err == nil {
+				slog.Debug("convert: using local user uvx for chunking")
+				cmd = exec.Command(userUvx, "--with", "langchain-text-splitters", "python", "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+			} else {
+				if pythonPath, err := exec.LookPath("python3"); err == nil {
+					slog.Warn("convert: uv/uvx not found, trying system python3 direct for chunking")
+					cmd = exec.Command(pythonPath, "-c", script, fmt.Sprintf("%d", chunkSize), fmt.Sprintf("%d", chunkOverlap))
+				} else {
+					return nil, fmt.Errorf("neither 'python3' nor 'uvx'/'uv' was found in PATH to run langchain text splitter")
+				}
+			}
+		}
+	}
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdin = strings.NewReader(mdText)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("langchain splitter failed: %w (stderr: %s)", err, stderr.String())
+	}
+
+	var response struct {
+		Chunks []string `json:"chunks"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &response); err != nil {
+		return nil, fmt.Errorf("failed to parse langchain output: %w (raw output: %s)", err, out.String())
+	}
+
+	chunks := make([]Chunk, len(response.Chunks))
+	for i, text := range response.Chunks {
+		chunks[i] = Chunk{
+			Index: i + 1,
+			Text:  text,
+		}
+	}
+
+	return chunks, nil
 }

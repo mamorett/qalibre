@@ -40,19 +40,22 @@ type DatasetSummary struct {
 
 type DatasetDetail struct {
 	DatasetSummary
-	Metadata []MetadataItem `json:"metadata"`
+	Metadata        []MetadataItem `json:"metadata"`
+	ExportDirectory string         `json:"export_directory"`
 }
 
 type CreateDatasetRequest struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Metadata    []MetadataItem `json:"metadata"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	Metadata        []MetadataItem `json:"metadata"`
+	ExportDirectory string         `json:"export_directory"`
 }
 
 type UpdateDatasetRequest struct {
-	Name        *string         `json:"name,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	Metadata    *[]MetadataItem `json:"metadata,omitempty"` // nil = leave as-is
+	Name            *string         `json:"name,omitempty"`
+	Description     *string         `json:"description,omitempty"`
+	Metadata        *[]MetadataItem `json:"metadata,omitempty"` // nil = leave as-is
+	ExportDirectory *string         `json:"export_directory,omitempty"`
 }
 
 type AddBooksRequest struct {
@@ -61,6 +64,12 @@ type AddBooksRequest struct {
 
 type ExportRequest struct {
 	Path string `json:"path"`
+}
+
+type ExportChunkedRequest struct {
+	Path         string `json:"path"`
+	ChunkSize    int    `json:"chunk_size"`
+	ChunkOverlap int    `json:"chunk_overlap"`
 }
 
 // ListDatasets handles GET /api/v1/datasets
@@ -128,6 +137,14 @@ func (rm *RouteManager) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payload.ExportDirectory = strings.TrimSpace(payload.ExportDirectory)
+	if payload.ExportDirectory != "" {
+		if err := validateExportDirectory(payload.ExportDirectory); err != nil {
+			rm.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	var userID sql.NullInt64
 	if ok {
@@ -145,9 +162,9 @@ func (rm *RouteManager) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	res, err := tx.Exec(`
-		INSERT INTO dataset (uuid, name, description, user_id, created, last_modified)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		uuidStr, payload.Name, payload.Description, userID)
+		INSERT INTO dataset (uuid, name, description, export_directory, user_id, created, last_modified)
+		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		uuidStr, payload.Name, payload.Description, payload.ExportDirectory, userID)
 	if err != nil {
 		rm.ErrorJSON(w, "Failed to insert dataset", http.StatusInternalServerError)
 		return
@@ -242,6 +259,21 @@ func (rm *RouteManager) UpdateDataset(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec("UPDATE dataset SET description = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.Description, id)
 		if err != nil {
 			rm.ErrorJSON(w, "Failed to update dataset description", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if payload.ExportDirectory != nil {
+		dir := strings.TrimSpace(*payload.ExportDirectory)
+		if dir != "" {
+			if err := validateExportDirectory(dir); err != nil {
+				rm.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		_, err = tx.Exec("UPDATE dataset SET export_directory = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", dir, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset export directory", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -827,8 +859,104 @@ func (rm *RouteManager) sendDatasetDetail(w http.ResponseWriter, datasetID int) 
 			Created:      d.Created.Format("2006-01-02 15:04:05"),
 			LastModified: d.LastModified.Format("2006-01-02 15:04:05"),
 		},
-		Metadata: metaItems,
+		Metadata:        metaItems,
+		ExportDirectory: d.ExportDirectory,
 	}
 
 	rm.WriteJSON(w, detail)
+}
+
+func validateExportDirectory(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil
+	}
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("export directory must be an absolute path")
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return fmt.Errorf("failed to create export directory: %w", err)
+	}
+	testFile := filepath.Join(path, fmt.Sprintf(".export_test_%d", time.Now().UnixNano()))
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		return fmt.Errorf("export directory is not writable: %w", err)
+	}
+	_ = os.Remove(testFile)
+	return nil
+}
+
+// ExportDatasetChunked handles POST /api/v1/dataset/{id}/export-chunked
+func (rm *RouteManager) ExportDatasetChunked(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	datasetID, err := strconv.Atoi(idStr)
+	if err != nil {
+		rm.ErrorJSON(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+
+	var d appdb.Dataset
+	err = rm.DB.Get(&d, "SELECT * FROM dataset WHERE id = ?", datasetID)
+	if err != nil {
+		rm.ErrorJSON(w, "Dataset not found", http.StatusNotFound)
+		return
+	}
+
+	var payload ExportChunkedRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		rm.ErrorJSON(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	path := strings.TrimSpace(payload.Path)
+	if path == "" {
+		path = strings.TrimSpace(d.ExportDirectory)
+	}
+	if path == "" {
+		rm.ErrorJSON(w, "No export directory configured: set export_directory on the dataset or provide path in the request", http.StatusBadRequest)
+		return
+	}
+
+	if err := validateExportDirectory(path); err != nil {
+		rm.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	chunkSize := payload.ChunkSize
+	if chunkSize <= 0 {
+		chunkSize = 768
+	} else if chunkSize > 100000 {
+		chunkSize = 100000
+	}
+
+	chunkOverlap := payload.ChunkOverlap
+	if chunkOverlap < 0 {
+		chunkOverlap = 0
+	}
+
+	if chunkOverlap >= chunkSize {
+		rm.ErrorJSON(w, "chunk_overlap must be less than chunk_size", http.StatusBadRequest)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	var username string
+	var userID int
+	if ok {
+		appUser := user.(*appdb.User)
+		username = appUser.Name
+		userID = appUser.ID
+	}
+
+	task := &tasks.TaskExportDatasetChunked{
+		DatasetID:    datasetID,
+		ExportPath:   path,
+		ChunkSize:    chunkSize,
+		ChunkOverlap: chunkOverlap,
+		UserID:       userID,
+		Cfg:          rm.Cfg,
+	}
+
+	taskID := worker.GetInstance(rm.DB).AddTask(username, task)
+	w.WriteHeader(http.StatusAccepted)
+	rm.WriteJSON(w, map[string]string{"task_id": taskID})
 }

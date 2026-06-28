@@ -76,8 +76,8 @@ export function RowCard({
               />
             ) : onRemove ? (
               <Button
-                icon="cross"
-                variant="minimal"
+                icon="trash"
+                variant="outlined"
                 title="Remove from Dataset"
                 onClick={onRemove}
                 intent="danger"

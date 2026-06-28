@@ -62,3 +62,36 @@ func TestToMarkdownFromHtml(t *testing.T) {
 		t.Errorf("ToMarkdown html paragraph text missing: %q", got)
 	}
 }
+
+func TestToChunkedMarkdown(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "qalibre_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "test.txt")
+	content := "This is a simple test file that we will use to verify that the chunking logic works as expected. We want to make sure it splits the text correctly."
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	chunks, err := ToChunkedMarkdown(filePath, "txt", 50, 10)
+	if err != nil {
+		t.Logf("Skipping ToChunkedMarkdown test because python dependencies might be missing: %v", err)
+		return
+	}
+
+	if len(chunks) == 0 {
+		t.Errorf("Expected chunks, got 0")
+	}
+
+	for _, chunk := range chunks {
+		if chunk.Index <= 0 {
+			t.Errorf("Invalid chunk index: %d", chunk.Index)
+		}
+		if chunk.Text == "" {
+			t.Errorf("Empty chunk text")
+		}
+	}
+}

@@ -51,6 +51,7 @@ import {
   CreateDatasetPayload,
   AddBooksPayload,
   ExportPayload,
+  ExportChunkedPayload,
 } from "../types/dataset";
 import { BookListResponse } from "../types/book";
 
@@ -94,10 +95,11 @@ export const datasetsApi = {
   available:  (id: number, q: BookListQ) => api<BookListResponse>(`/api/v1/dataset/${id}/available-books${buildQs(q)}`),
   addBooks:   (id: number, p: AddBooksPayload) => api<{ added: number; skipped: number }>(`/api/v1/dataset/${id}/books`, { method: "POST", body: JSON.stringify(p) }),
   removeBook: (id: number, bookId: number) => api<void>(`/api/v1/dataset/${id}/books/${bookId}`, { method: "DELETE" }),
-  export:     (id: number, p: ExportPayload) => api<{ task_id: string }>(`/api/v1/dataset/${id}/export`, { method: "POST", body: JSON.stringify(p) }),
-  tasks:      () => api<TaskStatus[]>("/ajax/emailstat"),
-  cancelTask: (taskId: string) => api<{ success: boolean }>("/ajax/canceltask", { method: "POST", body: JSON.stringify({ task_id: taskId }) }),
-  stats:      () => api<StatsData>("/api/v1/stats"),
+  export:        (id: number, p: ExportPayload) => api<{ task_id: string }>(`/api/v1/dataset/${id}/export`, { method: "POST", body: JSON.stringify(p) }),
+  exportChunked: (id: number, p: ExportChunkedPayload) => api<{ task_id: string }>(`/api/v1/dataset/${id}/export-chunked`, { method: "POST", body: JSON.stringify(p) }),
+  tasks:         () => api<TaskStatus[]>("/ajax/emailstat"),
+  cancelTask:    (taskId: string) => api<{ success: boolean }>("/ajax/canceltask", { method: "POST", body: JSON.stringify({ task_id: taskId }) }),
+  stats:         () => api<StatsData>("/api/v1/stats"),
 };
 
 export interface FormatStat {

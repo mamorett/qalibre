@@ -18,12 +18,14 @@ export interface DatasetSummary {
 
 export interface DatasetDetail extends DatasetSummary {
   metadata: MetadataItem[];
+  export_directory: string;
 }
 
 export interface CreateDatasetPayload {
   name: string;
   description?: string;
   metadata?: MetadataItem[];
+  export_directory?: string;
 }
 
 export interface AddBooksPayload {
@@ -32,4 +34,10 @@ export interface AddBooksPayload {
 
 export interface ExportPayload {
   path: string;
+}
+
+export interface ExportChunkedPayload {
+  path?: string;
+  chunk_size: number;
+  chunk_overlap: number;
 }

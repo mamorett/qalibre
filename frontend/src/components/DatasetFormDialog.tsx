@@ -37,6 +37,8 @@ export function DatasetFormDialog({
 }: DatasetFormDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [exportDirectory, setExportDirectory] = useState("");
+  const [exportDirectoryError, setExportDirectoryError] = useState<string | undefined>(undefined);
   const [metadata, setMetadata] = useState<LocalMetadataItem[]>([]);
 
   const createMutation = useCreateDataset();
@@ -44,9 +46,11 @@ export function DatasetFormDialog({
 
   useEffect(() => {
     if (isOpen) {
+      setExportDirectoryError(undefined);
       if (mode === "edit" && dataset) {
         setName(dataset.name);
         setDescription(dataset.description || "");
+        setExportDirectory(dataset.export_directory || "");
         setMetadata(
           dataset.metadata.map((m) => ({
             key: m.key,
@@ -57,6 +61,7 @@ export function DatasetFormDialog({
       } else {
         setName("");
         setDescription("");
+        setExportDirectory("");
         setMetadata([]);
       }
     }
@@ -120,6 +125,18 @@ export function DatasetFormDialog({
     if (hasError) {
       setMetadata(updated);
     }
+
+    let exportDirErr: string | undefined;
+    const dir = exportDirectory.trim();
+    if (dir) {
+      const isAbs = dir.startsWith('/') || !!dir.match(/^[A-Za-z]:[\\\/]/);
+      if (!isAbs) {
+        exportDirErr = "Must be an absolute path";
+        hasError = true;
+      }
+    }
+    setExportDirectoryError(exportDirErr);
+
     return !hasError;
   };
 
@@ -140,6 +157,7 @@ export function DatasetFormDialog({
           name: name.trim(),
           description: description.trim(),
           metadata: cleanMetadata,
+          export_directory: exportDirectory.trim(),
         },
         {
           onSuccess: (data) => {
@@ -154,6 +172,7 @@ export function DatasetFormDialog({
           name: name.trim(),
           description: description.trim(),
           metadata: cleanMetadata,
+          export_directory: exportDirectory.trim(),
         },
         {
           onSuccess: (data) => {
@@ -216,6 +235,27 @@ export function DatasetFormDialog({
                 width: "100%",
                 minHeight: "80px",
               }}
+            />
+          </FormGroup>
+
+          <FormGroup
+            label="Export Directory"
+            labelInfo="(absolute path, optional)"
+            labelFor="dataset-export-dir"
+            helperText={exportDirectoryError || "Default directory used for plain & chunked Markdown exports. Subdirectories named after the dataset are created automatically."}
+            intent={exportDirectoryError ? "danger" : "none"}
+            style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+          >
+            <InputGroup
+              id="dataset-export-dir"
+              placeholder="e.g., /exports/my-dataset"
+              value={exportDirectory}
+              onChange={(e) => {
+                setExportDirectory(e.target.value);
+                setExportDirectoryError(undefined);
+              }}
+              intent={exportDirectoryError ? "danger" : "none"}
+              style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
             />
           </FormGroup>
 
