@@ -208,6 +208,26 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			continue
 		}
 
+		// Resolve Markdown output file path
+		sanitizedTitle := sanitizeFilename(book.Title)
+		if sanitizedTitle == "" {
+			sanitizedTitle = fmt.Sprintf("book_%d", bookID)
+		}
+		bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
+
+		// Idempotency: Skip if file already exists
+		if _, err := os.Stat(bookFile); err == nil {
+			slog.Info("export: skipping already exported book", "taskID", t.TaskID, "bookID", bookID, "file", bookFile)
+			statuses = append(statuses, bookStatus{
+				Title:        book.Title,
+				BookID:       bookID,
+				SourceFormat: ext,
+				Status:       "Skipped",
+				Details:      "Already exported (file exists)",
+			})
+			continue
+		}
+
 		slog.Info("export: converting file", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath, "format", ext)
 
 		// Dispatch to conversion
@@ -241,13 +261,6 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			}
 			continue
 		}
-
-		// Write Markdown file
-		sanitizedTitle := sanitizeFilename(book.Title)
-		if sanitizedTitle == "" {
-			sanitizedTitle = fmt.Sprintf("book_%d", bookID)
-		}
-		bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
 
 		escapedTitle := strings.ReplaceAll(book.Title, `"`, `\"`)
 		escapedAuthors := strings.ReplaceAll(authorsStr, `"`, `\"`)
