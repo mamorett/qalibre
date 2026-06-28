@@ -21,10 +21,10 @@ type Rootfile struct {
 
 // OpfXml structure of content.opf
 type OpfXml struct {
-	XMLName  xml.Name     `xml:"package"`
-	Metadata OpfMetadata  `xml:"metadata"`
-	Manifest OpfManifest  `xml:"manifest"`
-	Spine    OpfSpine     `xml:"spine"`
+	XMLName  xml.Name    `xml:"package"`
+	Metadata OpfMetadata `xml:"metadata"`
+	Manifest OpfManifest `xml:"manifest"`
+	Spine    OpfSpine    `xml:"spine"`
 }
 
 type OpfSpine struct {

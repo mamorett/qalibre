@@ -11,9 +11,9 @@ import (
 )
 
 type RouteManager struct {
-	DB   *sqlx.DB
-	Cfg  *config.Config
-	SM   *auth.SessionManager
+	DB    *sqlx.DB
+	Cfg   *config.Config
+	SM    *auth.SessionManager
 	IsDev bool
 }
 
@@ -26,7 +26,7 @@ func (rm *RouteManager) RegisterRoutes(r chi.Router) {
 	// Public routes (Auth handled inside or optional)
 	r.Group(func(pub chi.Router) {
 		pub.Use(rm.SM.AuthMiddleware)
-		
+
 		pub.Get("/api/v1/session", rm.GetSession)
 		pub.Post("/api/v1/login", rm.Login)
 		pub.Post("/api/v1/logout", rm.Logout)
@@ -36,19 +36,20 @@ func (rm *RouteManager) RegisterRoutes(r chi.Router) {
 	// Authenticated routes
 	r.Group(func(authGroup chi.Router) {
 		authGroup.Use(rm.SM.AuthMiddleware)
-		
+
 		// Optional basic/session auth check
 		authGroup.Get("/api/v1/book/{id}", rm.GetBook)
 		authGroup.Patch("/api/v1/book/{id}", rm.EditBook)
 		authGroup.Get("/api/v1/shelves", rm.GetShelves)
 		authGroup.Get("/api/v1/meta/custom-columns", rm.GetCustomColumns)
+		authGroup.Get("/api/v1/stats", rm.GetStats)
 		authGroup.Get("/ajax/listbooks", rm.ListBooks)
-		
+
 		authGroup.Post("/ajax/toggleread/{id}", rm.ToggleRead)
 		authGroup.Post("/ajax/togglearchived/{id}", rm.ToggleArchived)
 		authGroup.Get("/ajax/emailstat", rm.GetTasksStatus)
 		authGroup.Post("/ajax/canceltask", rm.CancelTask)
-		
+
 		authGroup.Get("/cover/{id}", rm.ServeCover)
 		authGroup.Get("/cover/{id}/{res}", rm.ServeCover)
 		authGroup.Get("/read/{id}/{fmt}", rm.ReadBook)

@@ -1,0 +1,116 @@
+#!/bin/bash
+# godelw — wrapper script for Palantir gödel
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GODEL_DIR="${SCRIPT_DIR}/godel"
+GODEL_CONFIG_DIR="${GODEL_DIR}/config"
+GODEL_PROPS="${GODEL_CONFIG_DIR}/godel.properties"
+GODEL_BIN="${GODEL_DIR}/bin/godel"
+GLOBAL_GODEL_DIR="${HOME}/.godel"
+
+# ---------------------------------------------------------------------------
+# Load properties
+# ---------------------------------------------------------------------------
+if [ ! -f "${GODEL_PROPS}" ]; then
+  echo "ERROR: ${GODEL_PROPS} not found" >&2
+  exit 1
+fi
+
+DISTRIBUTION_URL="$(grep -E '^distributionURL=' "${GODEL_PROPS}" | sed 's/^distributionURL=//')"
+DISTRIBUTION_SHA256="$(grep -E '^distributionSHA256=' "${GODEL_PROPS}" | sed 's/^distributionSHA256=//')"
+
+if [ -z "${DISTRIBUTION_URL}" ]; then
+  echo "ERROR: distributionURL is empty in ${GODEL_PROPS}" >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Derive version
+# ---------------------------------------------------------------------------
+GODEL_TAR_NAME="$(basename "${DISTRIBUTION_URL}")"
+GODEL_VERSION="${GODEL_TAR_NAME%.tgz}"
+GODEL_VERSION="${GODEL_VERSION#godel-}"
+
+# ---------------------------------------------------------------------------
+# Cache paths
+# ---------------------------------------------------------------------------
+mkdir -p "${GLOBAL_GODEL_DIR}/downloads"
+DOWNLOAD_PATH="${GLOBAL_GODEL_DIR}/downloads/${GODEL_TAR_NAME}"
+EXTRACT_PATH="${GLOBAL_GODEL_DIR}/godel-${GODEL_VERSION}"
+
+# ---------------------------------------------------------------------------
+# Download if not cached
+# ---------------------------------------------------------------------------
+if [ ! -f "${DOWNLOAD_PATH}" ]; then
+  echo "Downloading godel ${GODEL_VERSION}..."
+  curl -sL -o "${DOWNLOAD_PATH}" "${DISTRIBUTION_URL}"
+  echo "Download complete."
+fi
+
+# ---------------------------------------------------------------------------
+# Verify checksum if specified
+# ---------------------------------------------------------------------------
+if [ -n "${DISTRIBUTION_SHA256}" ]; then
+  ACTUAL_SHA="$(sha256sum "${DOWNLOAD_PATH}" | cut -d' ' -f1)"
+  if [ "${ACTUAL_SHA}" != "${DISTRIBUTION_SHA256}" ]; then
+    echo "ERROR: checksum mismatch for godel ${GODEL_VERSION}" >&2
+    echo "  Expected: ${DISTRIBUTION_SHA256}" >&2
+    echo "  Actual:   ${ACTUAL_SHA}" >&2
+    rm -f "${DOWNLOAD_PATH}"
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Extract
+# ---------------------------------------------------------------------------
+rm -rf "${EXTRACT_PATH}"
+mkdir -p "${EXTRACT_PATH}"
+tar -xzf "${DOWNLOAD_PATH}" -C "${EXTRACT_PATH}" --strip-components=1
+
+# ---------------------------------------------------------------------------
+# Select the binary matching this host's platform
+# ---------------------------------------------------------------------------
+GODEL_BIN_LOCAL="${EXTRACT_PATH}/godel"
+HOST_OS="$(go env GOOS 2>/dev/null || uname -s | tr '[:upper:]' '[:lower:]')"
+HOST_ARCH="$(go env GOARCH 2>/dev/null || uname -m)"
+
+# Map uname -m arch values to godel convention
+case "${HOST_ARCH}" in
+  x86_64)   HOST_ARCH="amd64" ;;
+  aarch64)  HOST_ARCH="arm64" ;;
+esac
+
+# Map darwin
+if [ "${HOST_OS}" = "linux" ]; then
+  GODEL_BIN_LOCAL="${EXTRACT_PATH}/bin/linux-${HOST_ARCH}/godel"
+elif [ "${HOST_OS}" = "darwin" ]; then
+  GODEL_BIN_LOCAL="${EXTRACT_PATH}/bin/darwin-${HOST_ARCH}/godel"
+elif [ "${HOST_OS}" = "freebsd" ]; then
+  GODEL_BIN_LOCAL="${EXTRACT_PATH}/bin/freebsd-${HOST_ARCH}/godel"
+elif [ "${HOST_OS}" = "windows" ]; then
+  GODEL_BIN_LOCAL="${EXTRACT_PATH}/bin/windows-${HOST_ARCH}/godel"
+fi
+
+# Fallback to bin/<os>-<arch>/godel
+if [ ! -f "${GODEL_BIN_LOCAL}" ]; then
+  GODEL_BIN_LOCAL="${EXTRACT_PATH}/bin/${HOST_OS}-${HOST_ARCH}/godel"
+fi
+
+if [ ! -f "${GODEL_BIN_LOCAL}" ]; then
+  echo "ERROR: could not find godel binary for ${HOST_OS}/${HOST_ARCH}" >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Symlink into project-local godel/bin
+# ---------------------------------------------------------------------------
+mkdir -p "${GODEL_DIR}/bin"
+ln -sf "${GODEL_BIN_LOCAL}" "${GODEL_BIN}"
+
+# ---------------------------------------------------------------------------
+# Pass through
+# ---------------------------------------------------------------------------
+export GOROOT="$(go env GOROOT)"
+exec "${GODEL_BIN}" --wrapper "${SCRIPT_DIR}/godelw" "$@"

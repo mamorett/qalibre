@@ -113,3 +113,10 @@ export function useCancelTask() {
     },
   });
 }
+
+export function useStats() {
+  return useQuery({
+    queryKey: ["stats"],
+    queryFn: () => datasetsApi.stats(),
+  });
+}

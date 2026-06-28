@@ -1,0 +1,34 @@
+products:
+  qalibre:
+    build:
+      main-pkg: ./cmd/qalibre
+      version-var: github.com/qalibre/qalibre/internal/config.STABLE_VERSION
+      os-archs:
+        - os: linux
+          arch: amd64
+        - os: linux
+          arch: arm64
+        - os: darwin
+          arch: arm64
+        - os: windows
+          arch: amd64
+        - os: windows
+          arch: arm64
+      environment:
+        CGO_ENABLED: "0"
+    dist:
+      disters:
+        os-arch-bin:
+          type: os-arch-bin
+          config:
+            os-archs:
+              - os: linux
+                arch: amd64
+              - os: linux
+                arch: arm64
+              - os: darwin
+                arch: arm64
+              - os: windows
+                arch: amd64
+              - os: windows
+                arch: arm64

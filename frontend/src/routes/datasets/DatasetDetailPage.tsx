@@ -16,6 +16,8 @@ import {
   Intent,
   Dialog,
   HTMLSelect,
+  OverlayToaster,
+  Position,
 } from "@blueprintjs/core";
 import { useApp } from "../../context/AppContext";
 import {
@@ -32,6 +34,10 @@ import {
 import { RowCard } from "../../components/RowCard";
 import { Pagination } from "../../components/Pagination";
 import { DatasetFormDialog } from "../../components/DatasetFormDialog";
+
+const AppToaster = OverlayToaster.createAsync({
+  position: Position.TOP,
+});
 
 export default function DatasetDetailPage() {
   const { id: idParam } = useParams<{ id: string }>();
@@ -163,6 +169,25 @@ export default function DatasetDetailPage() {
       onSuccess: () => {
         setSelectedBookIds(new Set());
         refetchDataset();
+        AppToaster.then((toaster) => {
+          toaster.show({
+            message: "Operation succeeded: Books added to dataset",
+            intent: Intent.SUCCESS,
+            icon: "tick",
+            timeout: 2000,
+          });
+        });
+      },
+      onError: (err: any) => {
+        const errMsg = err?.body?.error || err?.message || "Failed to add books.";
+        AppToaster.then((toaster) => {
+          toaster.show({
+            message: `Error: ${errMsg}`,
+            intent: Intent.DANGER,
+            icon: "error",
+            timeout: 3000,
+          });
+        });
       },
     });
   };
@@ -172,6 +197,25 @@ export default function DatasetDetailPage() {
     removeBookMutation.mutate(bookId, {
       onSuccess: () => {
         refetchDataset();
+        AppToaster.then((toaster) => {
+          toaster.show({
+            message: "Operation succeeded: Book removed from dataset",
+            intent: Intent.SUCCESS,
+            icon: "tick",
+            timeout: 2000,
+          });
+        });
+      },
+      onError: (err: any) => {
+        const errMsg = err?.body?.error || err?.message || "Failed to remove book.";
+        AppToaster.then((toaster) => {
+          toaster.show({
+            message: `Error: ${errMsg}`,
+            intent: Intent.DANGER,
+            icon: "error",
+            timeout: 3000,
+          });
+        });
       },
     });
   };

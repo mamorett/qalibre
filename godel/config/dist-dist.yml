@@ -1,0 +1,4 @@
+products:
+  qalibre:
+    bin-dist:
+      name: qalibre

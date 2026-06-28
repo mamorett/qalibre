@@ -8,21 +8,21 @@ import (
 
 // User table schema
 type User struct {
-	ID                  int            `db:"id"`
-	Name                string         `db:"name"`
-	Email               string         `db:"email"`
-	Role                int            `db:"role"`
-	Password            string         `db:"password"`
-	KindleMail          string         `db:"kindle_mail"`
-	Locale              string         `db:"locale"`
-	SidebarView         int            `db:"sidebar_view"`
-	DefaultLanguage     string         `db:"default_language"`
-	DeniedTags          string         `db:"denied_tags"`
-	AllowedTags         string         `db:"allowed_tags"`
-	DeniedColumnValue   string         `db:"denied_column_value"`
-	AllowedColumnValue  string         `db:"allowed_column_value"`
-	ViewSettings        string         `db:"view_settings"` // Stored as JSON string
-	KoboOnlyShelvesSync int            `db:"kobo_only_shelves_sync"`
+	ID                  int    `db:"id"`
+	Name                string `db:"name"`
+	Email               string `db:"email"`
+	Role                int    `db:"role"`
+	Password            string `db:"password"`
+	KindleMail          string `db:"kindle_mail"`
+	Locale              string `db:"locale"`
+	SidebarView         int    `db:"sidebar_view"`
+	DefaultLanguage     string `db:"default_language"`
+	DeniedTags          string `db:"denied_tags"`
+	AllowedTags         string `db:"allowed_tags"`
+	DeniedColumnValue   string `db:"denied_column_value"`
+	AllowedColumnValue  string `db:"allowed_column_value"`
+	ViewSettings        string `db:"view_settings"` // Stored as JSON string
+	KoboOnlyShelvesSync int    `db:"kobo_only_shelves_sync"`
 }
 
 // GetViewSettings unmarshals the ViewSettings field
@@ -68,13 +68,13 @@ type BookShelfLink struct {
 
 // ReadBook table schema (book_read_link)
 type ReadBook struct {
-	ID                      int          `db:"id"`
-	BookID                  int          `db:"book_id"`
-	UserID                  int          `db:"user_id"`
-	ReadStatus              int          `db:"read_status"`
-	LastModified            time.Time    `db:"last_modified"`
-	LastTimeStartedReading  sql.NullTime `db:"last_time_started_reading"`
-	TimesStartedReading     int          `db:"times_started_reading"`
+	ID                     int          `db:"id"`
+	BookID                 int          `db:"book_id"`
+	UserID                 int          `db:"user_id"`
+	ReadStatus             int          `db:"read_status"`
+	LastModified           time.Time    `db:"last_modified"`
+	LastTimeStartedReading sql.NullTime `db:"last_time_started_reading"`
+	TimesStartedReading    int          `db:"times_started_reading"`
 }
 
 const (
@@ -117,15 +117,15 @@ type Registration struct {
 
 // Thumbnail table schema
 type Thumbnail struct {
-	ID           int          `db:"id"`
-	EntityID     int          `db:"entity_id"`
-	UUID         string       `db:"uuid"`
-	Format       string       `db:"format"`
-	Type         int16        `db:"type"`
-	Resolution   int16        `db:"resolution"`
-	Filename     string       `db:"filename"`
-	GeneratedAt  time.Time    `db:"generated_at"`
-	Expiration   sql.NullTime `db:"expiration"`
+	ID          int          `db:"id"`
+	EntityID    int          `db:"entity_id"`
+	UUID        string       `db:"uuid"`
+	Format      string       `db:"format"`
+	Type        int16        `db:"type"`
+	Resolution  int16        `db:"resolution"`
+	Filename    string       `db:"filename"`
+	GeneratedAt time.Time    `db:"generated_at"`
+	Expiration  sql.NullTime `db:"expiration"`
 }
 
 // UserSession table schema (user_session)

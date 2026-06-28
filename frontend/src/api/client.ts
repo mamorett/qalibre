@@ -97,4 +97,24 @@ export const datasetsApi = {
   export:     (id: number, p: ExportPayload) => api<{ task_id: string }>(`/api/v1/dataset/${id}/export`, { method: "POST", body: JSON.stringify(p) }),
   tasks:      () => api<TaskStatus[]>("/ajax/emailstat"),
   cancelTask: (taskId: string) => api<{ success: boolean }>("/ajax/canceltask", { method: "POST", body: JSON.stringify({ task_id: taskId }) }),
+  stats:      () => api<StatsData>("/api/v1/stats"),
 };
+
+export interface FormatStat {
+  format: string;
+  count: number;
+  size: number;
+}
+
+export interface StatsData {
+  version: string;
+  total_books: number;
+  total_authors: number;
+  total_series: number;
+  total_tags: number;
+  total_publishers: number;
+  read_books: number;
+  unread_books: number;
+  archived_books: number;
+  formats: FormatStat[];
+}

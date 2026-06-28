@@ -2,7 +2,9 @@
 // It replaces the mimetypes init in cps/__init__.py.
 package mime
 
-import "strings"
+import (
+	"strings"
+)
 
 // extensionMap covers all formats used in Qalibre (audio types removed).
 var extensionMap = map[string]string{
@@ -40,8 +42,8 @@ var extensionMap = map[string]string{
 	".webp": "image/webp",
 	".bmp":  "image/bmp",
 	// opds / xml
-	".opf": "application/oebps-package+xml",
-	".xml": "application/xml",
+	".opf":  "application/oebps-package+xml",
+	".xml":  "application/xml",
 	".atom": "application/atom+xml",
 }
 
