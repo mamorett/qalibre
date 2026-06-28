@@ -15,11 +15,17 @@ import (
 // GetConfigDir resolves the Qalibre config/settings directory.
 // Priority:
 // 1. Env var CALIBRE_DBPATH
-// 2. If a file `.HOMEDIR` exists in the executable's directory, use ~/.qalibre
-// 3. Otherwise, use the executable's directory (the repository root or current dir)
+// 2. If a `/data` directory exists (standard for container persistent volumes), use it
+// 3. If a file `.HOMEDIR` exists in the executable's directory, use ~/.qalibre
+// 4. Otherwise, use the executable's directory (the repository root or current dir)
 func GetConfigDir() string {
 	if env := os.Getenv("CALIBRE_DBPATH"); env != "" {
 		return env
+	}
+
+	// Default to /data in container environments if it exists
+	if info, err := os.Stat("/data"); err == nil && info.IsDir() {
+		return "/data"
 	}
 
 	execPath, err := os.Executable()

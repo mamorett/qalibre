@@ -24,6 +24,15 @@ type OpfXml struct {
 	XMLName  xml.Name     `xml:"package"`
 	Metadata OpfMetadata  `xml:"metadata"`
 	Manifest OpfManifest  `xml:"manifest"`
+	Spine    OpfSpine     `xml:"spine"`
+}
+
+type OpfSpine struct {
+	ItemRefs []OpfItemRef `xml:"itemref"`
+}
+
+type OpfItemRef struct {
+	IDRef string `xml:"idref,attr"`
 }
 
 type OpfMetadata struct {

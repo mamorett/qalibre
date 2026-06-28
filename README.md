@@ -22,7 +22,7 @@ The primary goal of Qalibre is to act as a **dataset preparation pipeline** for 
 
 *   **Filter & Catalog:** Query, clean, and organize large document libraries.
 *   **Metadata Curation:** Clean, tag, edit, and export schema-compliant metadata.
-*   **Format Standardization:** Manage conversion formats (EPUB, PDF, MOBI, etc.) suitable for downstream text extractors.
+*   **Format Standardization:** Manage conversion formats (EPUB, PDF, HTML, etc.) suitable for downstream text extractors.
 *   **Data Hygiene:** Apply flexible allowed lists, blocklists, and custom column criteria to filter raw library assets into clean training datasets.
 
 ---
@@ -31,10 +31,25 @@ The primary goal of Qalibre is to act as a **dataset preparation pipeline** for 
 
 *   **⚡ High Performance:** Rebuilt with a Go backend for high-throughput queries and sub-millisecond database lookups.
 *   **🎨 Premium UI:** Responsive Single Page Application (SPA) frontend styled using Palantir Blueprint v6 with modern dark-mode aesthetics.
+*   **📊 Dataset Curation:** Build custom document datasets for AI model training. Edit EAV metadata entries (keys, values, and types including strings, numbers, timestamps, paths) and manage books using a customizable pagination modal (5, 10, 20, 50, or 100 entries).
+*   **📝 Markdown Exporter:** Export complete datasets to structured Markdown directories. Books are converted (TXT, HTML, EPUB, and PDF) with YAML front-matter metadata, accompanied by a central `dataset.md` index file.
+*   **⚡ Idempotent Pipeline:** Subsequent exports are extremely fast, skipping already-converted book files to allow incremental dataset additions.
+*   **🔄 Background Task Queue:** Triggers exports asynchronously. Shows real-time progress bars, step-by-step processing messages, and lets you cancel tasks directly from the UI.
 *   **📁 Upload Pipeline:** Drag-and-drop file upload with automated metadata parsing (OPF/container mapping) for `.epub` and `.pdf` files.
-*   **🔄 Task Runner:** Background queue for serial execution of cleanup tasks, cache management, and database reconnection.
 *   **🔒 Security First:** Role-based permissions (Admin, Upload, Download, Viewer), secure session cookies, and Werkzeug-compatible password verifications.
 *   **📖 In-Browser Reader:** Native inline PDF/EPUB reading with support for HTTP Byte Range requests.
+
+---
+
+## 📦 System Dependencies
+
+To run Qalibre from source or enable native document conversions, the following system utilities are required:
+
+| Dependency | Purpose | Installation (Ubuntu/Debian) | Installation (macOS) | Installation (Alpine) |
+| :--- | :--- | :--- | :--- | :--- |
+| **`pdftotext`** | High-fidelity PDF text extraction | `sudo apt install poppler-utils` | `brew install poppler` | `apk add poppler-utils` |
+| **`imagemagick`** | Cover page thumbnail generation | `sudo apt install imagemagick` | `brew install imagemagick` | `apk add imagemagick` |
+| **`p7zip`** | comic book archive parsing | `sudo apt install p7zip-full` | `brew install p7zip` | `apk add p7zip` |
 
 ---
 
@@ -42,7 +57,7 @@ The primary goal of Qalibre is to act as a **dataset preparation pipeline** for 
 
 ### Running with Docker (Recommended)
 
-To run Qalibre instantly in a self-contained container:
+To run Qalibre instantly in a self-contained container with all dependencies pre-installed:
 
 1.  **Build the Image**:
     ```bash
@@ -55,13 +70,14 @@ To run Qalibre instantly in a self-contained container:
       -p 8083:8083 \
       --name qalibre \
       -v /path/to/calibre/library:/library \
-      -v /path/to/config:/app/config \
+      -v /path/to/persistent/config:/data \
       qalibre
     ```
 
-> [!NOTE]
-> *   `/library` must contain your Calibre library's `metadata.db` and book folders.
-> *   `/app/config` is where settings and user sessions (`app.db`) are persisted.
+> [!IMPORTANT]
+> *   `/library` must point to your Calibre library containing `metadata.db` and the corresponding book folders.
+> *   `/data` is where settings, user sessions, and datasets (`app.db`) are persisted. This ensures your datasets survive container updates.
+> *   **UI Export Path**: When exporting a dataset in the frontend, input `/data/my-export` (or any sub-folder of `/data`) to write the resulting files directly to your persistent host storage.
 
 ---
 

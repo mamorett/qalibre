@@ -142,3 +142,30 @@ type FlaskSettings struct {
 	ID              int    `db:"id"`
 	FlaskSessionKey []byte `db:"flask_session_key"`
 }
+
+type Dataset struct {
+	ID           int           `db:"id"            json:"id"`
+	UUID         string        `db:"uuid"          json:"uuid"`
+	Name         string        `db:"name"          json:"name"`
+	Description  string        `db:"description"   json:"description"`
+	UserID       sql.NullInt64 `db:"user_id"       json:"user_id,omitempty"`
+	Created      time.Time     `db:"created"       json:"created"`
+	LastModified time.Time     `db:"last_modified" json:"last_modified"`
+}
+
+type DatasetBook struct {
+	ID        int       `db:"id"         json:"id"`
+	DatasetID int       `db:"dataset_id" json:"dataset_id"`
+	BookID    int       `db:"book_id"    json:"book_id"`
+	SortOrder int       `db:"sort_order" json:"sort_order"`
+	AddedAt   time.Time `db:"added_at"   json:"added_at"`
+}
+
+type DatasetMetadata struct {
+	ID        int    `db:"id"         json:"id"`
+	DatasetID int    `db:"dataset_id" json:"dataset_id"`
+	Key       string `db:"key"        json:"key"`
+	Value     string `db:"value"      json:"value"`      // raw text
+	ValueType string `db:"value_type" json:"value_type"` // string|number|timestamp|path
+	SortOrder int    `db:"sort_order" json:"sort_order"`
+}

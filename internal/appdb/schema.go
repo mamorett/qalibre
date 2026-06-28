@@ -202,6 +202,33 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 			config_limiter_options TEXT,
 			config_check_extensions INTEGER
 		)`,
+		`CREATE TABLE IF NOT EXISTS dataset (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid          TEXT UNIQUE,
+			name          TEXT NOT NULL,
+			description   TEXT DEFAULT '',
+			user_id       INTEGER,
+			created       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS dataset_book (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			dataset_id INTEGER NOT NULL,
+			book_id    INTEGER NOT NULL,
+			sort_order INTEGER DEFAULT 0,
+			added_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE (dataset_id, book_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS dataset_metadata (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			dataset_id INTEGER NOT NULL,
+			key        TEXT NOT NULL,
+			value      TEXT,
+			value_type TEXT NOT NULL DEFAULT 'string',
+			sort_order INTEGER DEFAULT 0
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_dataset_book_dataset ON dataset_book(dataset_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_dataset_metadata_dataset ON dataset_metadata(dataset_id)`,
 	}
 
 	for _, query := range schemaQueries {

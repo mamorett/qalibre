@@ -75,6 +75,23 @@ func (rm *RouteManager) RegisterRoutes(r chi.Router) {
 			adm.Post("/api/v1/admin/users", rm.CreateUser)
 			adm.Delete("/api/v1/admin/users/{id}", rm.DeleteUser)
 		})
+
+		// Dataset routes - v1: admins only (see D10)
+		authGroup.Group(func(ds chi.Router) {
+			ds.Use(rm.SM.RequireAdmin)
+			ds.Get("/api/v1/datasets", rm.ListDatasets)
+			ds.Post("/api/v1/datasets", rm.CreateDataset)
+			ds.Get("/api/v1/dataset/{id}", rm.GetDataset)
+			ds.Patch("/api/v1/dataset/{id}", rm.UpdateDataset)
+			ds.Delete("/api/v1/dataset/{id}", rm.DeleteDataset)
+
+			ds.Get("/api/v1/dataset/{id}/books", rm.ListDatasetBooks)
+			ds.Post("/api/v1/dataset/{id}/books", rm.AddBooksToDataset)
+			ds.Delete("/api/v1/dataset/{id}/books/{bookId}", rm.RemoveBookFromDataset)
+
+			ds.Get("/api/v1/dataset/{id}/available-books", rm.ListAvailableBooks)
+			ds.Post("/api/v1/dataset/{id}/export", rm.ExportDataset)
+		})
 	})
 }
 

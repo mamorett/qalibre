@@ -11,6 +11,8 @@ import { RegisterPage } from "./routes/auth/RegisterPage";
 
 import ConfigPage from "./routes/config/ConfigPage";
 import AdminPage from "./routes/admin/AdminPage";
+import DatasetsPage from "./routes/datasets/DatasetsPage";
+import DatasetDetailPage from "./routes/datasets/DatasetDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +72,10 @@ function AppRoutes() {
         {/* Configuration / Admin */}
         <Route path="config" element={<ConfigPage />} />
         <Route path="admin" element={<AdminPage />} />
+
+        {/* Datasets */}
+        <Route path="datasets" element={<DatasetsPage />} />
+        <Route path="datasets/:id" element={<DatasetDetailPage />} />
 
         {/* Book Edit */}
         <Route path="edit/:id" element={<BookEditPage />} />
