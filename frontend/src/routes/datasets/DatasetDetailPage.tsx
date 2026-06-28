@@ -701,9 +701,22 @@ export default function DatasetDetailPage() {
                   <span style={{ wordBreak: "break-all" }}>{t.taskMessage}</span>
                   <span style={{ color: t.status === "Finished" ? "var(--accent-green)" : t.status === "Failed" ? "var(--accent-red)" : "inherit" }}>{t.status}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                   <span>ID: {t.task_id}</span>
-                  <span>{t.progress}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span>{t.progress}</span>
+                    {(t.status === "Started" || t.status === "Waiting") && (
+                      <Button
+                        icon="stop"
+                        intent="danger"
+                        variant="minimal"
+                        small
+                        onClick={() => cancelTaskMutation.mutate(t.task_id)}
+                        loading={cancelTaskMutation.isPending && cancelTaskMutation.variables === t.task_id}
+                        style={{ padding: "0 2px", minHeight: 20, height: 20 }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <ProgressBar
                   value={getProgressVal(t.progress)}
