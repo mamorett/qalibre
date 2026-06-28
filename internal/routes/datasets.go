@@ -363,6 +363,13 @@ func (rm *RouteManager) ListDatasetBooks(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var d appdb.Dataset
+	err = rm.DB.Get(&d, "SELECT * FROM dataset WHERE id = ?", datasetID)
+	if err != nil {
+		rm.ErrorJSON(w, "Dataset not found", http.StatusNotFound)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		rm.ErrorJSON(w, "Login required", http.StatusUnauthorized)
@@ -506,6 +513,30 @@ func (rm *RouteManager) ListDatasetBooks(w http.ResponseWriter, r *http.Request)
 	rows := make([]BookResponse, len(booksList))
 	for i, b := range booksList {
 		rows[i], _ = rm.buildBookResponse(b, u)
+
+		if d.ExportDirectory != "" {
+			sanitizedTitle := sanitizeDatasetFilename(b.Title)
+			if sanitizedTitle == "" {
+				sanitizedTitle = fmt.Sprintf("book_%d", b.ID)
+			}
+			sanitizedName := sanitizeDatasetFilename(d.Name)
+			if sanitizedName == "" {
+				sanitizedName = fmt.Sprintf("dataset_%d", d.ID)
+			}
+			targetDir := filepath.Join(d.ExportDirectory, sanitizedName)
+
+			// Check plain markdown conversion status
+			bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
+			if _, err := os.Stat(bookFile); err == nil {
+				rows[i].IsConvertedPlain = true
+			}
+
+			// Check chunked markdown conversion status
+			chunk001 := filepath.Join(targetDir, "chunked", fmt.Sprintf("%s__chunk_001.md", sanitizedTitle))
+			if _, err := os.Stat(chunk001); err == nil {
+				rows[i].IsConvertedChunked = true
+			}
+		}
 	}
 
 	rm.WriteJSON(w, map[string]interface{}{
@@ -966,4 +997,12 @@ func (rm *RouteManager) ExportDatasetChunked(w http.ResponseWriter, r *http.Requ
 	taskID := worker.GetInstance(rm.DB).AddTask(username, task)
 	w.WriteHeader(http.StatusAccepted)
 	rm.WriteJSON(w, map[string]string{"task_id": taskID})
+}
+
+func sanitizeDatasetFilename(name string) string {
+	badChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, c := range badChars {
+		name = strings.ReplaceAll(name, c, "_")
+	}
+	return strings.TrimSpace(name)
 }

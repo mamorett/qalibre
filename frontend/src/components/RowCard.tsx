@@ -123,13 +123,38 @@ export function RowCard({
           </div>
         )}
 
-        {/* Tags */}
-        <div style={{ marginTop: "auto", display: "flex", flexWrap: "wrap", gap: "4px" }}>
-          {tagsList.map(tag => (
-            <Tag key={tag} className="bp6-tag">
-              {tag}
-            </Tag>
-          ))}
+        {/* Tags and Conversion Status */}
+        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+            {tagsList.map(tag => (
+              <Tag key={tag} className="bp6-tag">
+                {tag}
+              </Tag>
+            ))}
+          </div>
+
+          {(book.is_converted_plain !== undefined || book.is_converted_chunked !== undefined) && (
+            <div style={{ display: "flex", gap: "6px" }}>
+              <Tag
+                intent={book.is_converted_plain ? "success" : "warning"}
+                minimal
+                icon={book.is_converted_plain ? "tick" : "warning-sign"}
+                title={book.is_converted_plain ? "Plain Markdown Converted" : "Plain Markdown Not Converted"}
+                style={{ fontSize: "0.75rem", fontFamily: "Space Mono, monospace" }}
+              >
+                MD
+              </Tag>
+              <Tag
+                intent={book.is_converted_chunked ? "success" : "warning"}
+                minimal
+                icon={book.is_converted_chunked ? "tick" : "warning-sign"}
+                title={book.is_converted_chunked ? "Chunked Markdown Converted" : "Chunked Markdown Not Converted"}
+                style={{ fontSize: "0.75rem", fontFamily: "Space Mono, monospace" }}
+              >
+                Chunked
+              </Tag>
+            </div>
+          )}
         </div>
       </div>
     </Card>
