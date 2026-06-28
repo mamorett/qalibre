@@ -17,42 +17,44 @@ import (
 	"github.com/qalibre/qalibre/internal/worker"
 )
 
-type TaskExportDataset struct {
-	TaskID     string
-	DatasetID  int
-	ExportPath string
-	Force      bool
-	UserID     int
-	Cfg        *config.Config
+type TaskExportDatasetChunked struct {
+	TaskID       string
+	DatasetID    int
+	ExportPath   string // already-resolved root directory (absolute)
+	ChunkSize    int
+	ChunkOverlap int
+	Force        bool
+	UserID       int
+	Cfg          *config.Config
 }
 
-func (t *TaskExportDataset) Name() string        { return "Export Dataset to Markdown" }
-func (t *TaskExportDataset) IsCancellable() bool { return true }
+func (t *TaskExportDatasetChunked) Name() string        { return "Export Chunked Markdown" }
+func (t *TaskExportDatasetChunked) IsCancellable() bool { return true }
 
-func (t *TaskExportDataset) SetTaskID(id string) {
+func (t *TaskExportDatasetChunked) SetTaskID(id string) {
 	t.TaskID = id
 }
 
-func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error) {
+func (t *TaskExportDatasetChunked) Run(ctx context.Context, db interface{}) (err error) {
 	sqlxDB, ok := db.(*sqlx.DB)
 	if !ok {
-		return fmt.Errorf("export: bad db handle")
+		return fmt.Errorf("export chunked: bad db handle")
 	}
 
 	wMgr := worker.GetInstance(sqlxDB)
 
-	// Ensure we recover from any potential panics (e.g. within pdf/epub library parsers)
+	// Ensure we recover from any potential panics
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("task panicked: %v", r)
-			slog.Error("export task panicked", "taskID", t.TaskID, "panic", r)
+			slog.Error("export chunked task panicked", "taskID", t.TaskID, "panic", r)
 			wMgr.SetMessage(t.TaskID, fmt.Sprintf("Panicked: %v", r))
 			wMgr.SetProgress(t.TaskID, 1.0)
 		}
 	}()
 
-	slog.Info("export: starting task", "taskID", t.TaskID, "datasetID", t.DatasetID, "exportPath", t.ExportPath)
-	wMgr.SetMessage(t.TaskID, "Loading dataset...")
+	slog.Info("export chunked: starting task", "taskID", t.TaskID, "datasetID", t.DatasetID, "exportPath", t.ExportPath)
+	wMgr.SetMessage(t.TaskID, "Loading dataset for Chunked Markdown...")
 	wMgr.SetProgress(t.TaskID, 0.05)
 
 	// 1. Load dataset
@@ -76,15 +78,16 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		return fmt.Errorf("failed to fetch dataset book IDs: %w", err)
 	}
 
-	// 2. Resolve target dir
+	// 2. Resolve target dirs
 	sanitizedName := sanitizeFilename(dataset.Name)
 	if sanitizedName == "" {
 		sanitizedName = fmt.Sprintf("dataset_%d", dataset.ID)
 	}
-	targetDir := filepath.Join(t.ExportPath, sanitizedName)
-	err = os.MkdirAll(targetDir, 0755)
+	root := filepath.Join(t.ExportPath, sanitizedName)
+	chunkedDir := filepath.Join(root, "chunked")
+	err = os.MkdirAll(chunkedDir, 0755)
 	if err != nil {
-		return fmt.Errorf("failed to create target directory %s: %w", targetDir, err)
+		return fmt.Errorf("failed to create chunked directory %s: %w", chunkedDir, err)
 	}
 
 	type bookStatus struct {
@@ -97,13 +100,13 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 	var statuses []bookStatus
 
 	totalBooks := len(bookIDs)
-	slog.Info("export: loaded books", "taskID", t.TaskID, "count", totalBooks)
+	slog.Info("export chunked: loaded books", "taskID", t.TaskID, "count", totalBooks)
 
 	// 3. Process books
 	for idx, bookID := range bookIDs {
 		// Respect ctx.Err() for cancellation between books
 		if err := ctx.Err(); err != nil {
-			slog.Info("export: task cancelled", "taskID", t.TaskID)
+			slog.Info("export chunked: task cancelled", "taskID", t.TaskID)
 			return err
 		}
 
@@ -115,7 +118,7 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		var book calibredb.Book
 		err = sqlxDB.Get(&book, "SELECT * FROM calibre.books WHERE id = ?", bookID)
 		if err != nil {
-			slog.Warn("export: calibre book missing in database", "taskID", t.TaskID, "bookID", bookID, "err", err)
+			slog.Warn("export chunked: calibre book missing in database", "taskID", t.TaskID, "bookID", bookID, "err", err)
 			statuses = append(statuses, bookStatus{
 				Title:        fmt.Sprintf("Book #%d", bookID),
 				BookID:       bookID,
@@ -126,8 +129,8 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			continue
 		}
 
-		wMgr.SetMessage(t.TaskID, fmt.Sprintf("Processing (%d/%d): %s", idx+1, totalBooks, book.Title))
-		slog.Info("export: processing book", "taskID", t.TaskID, "index", idx+1, "total", totalBooks, "bookID", bookID, "title", book.Title)
+		wMgr.SetMessage(t.TaskID, fmt.Sprintf("Processing (%d/%d): %s (Chunked)", idx+1, totalBooks, book.Title))
+		slog.Info("export chunked: processing book", "taskID", t.TaskID, "index", idx+1, "total", totalBooks, "bookID", bookID, "title", book.Title)
 
 		// Fetch authors
 		var authors []string
@@ -142,7 +145,7 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		var formats []calibredb.Data
 		err = sqlxDB.Select(&formats, "SELECT * FROM calibre.data WHERE book = ?", bookID)
 		if err != nil || len(formats) == 0 {
-			slog.Warn("export: book has no formats", "taskID", t.TaskID, "bookID", bookID, "err", err)
+			slog.Warn("export chunked: book has no formats", "taskID", t.TaskID, "bookID", bookID, "err", err)
 			statuses = append(statuses, bookStatus{
 				Title:        book.Title,
 				BookID:       bookID,
@@ -160,7 +163,7 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			for _, f := range formats {
 				fmtNames = append(fmtNames, f.Format)
 			}
-			slog.Info("export: book has no supported formats", "taskID", t.TaskID, "bookID", bookID, "formats", fmtNames)
+			slog.Info("export chunked: book has no supported formats", "taskID", t.TaskID, "bookID", bookID, "formats", fmtNames)
 			statuses = append(statuses, bookStatus{
 				Title:        book.Title,
 				BookID:       bookID,
@@ -198,7 +201,7 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 
 		// Check if file actually exists now
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			slog.Warn("export: format file missing on disk", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath)
+			slog.Warn("export chunked: format file missing on disk", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath)
 			statuses = append(statuses, bookStatus{
 				Title:        book.Title,
 				BookID:       bookID,
@@ -209,42 +212,59 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			continue
 		}
 
-		// Resolve Markdown output file path
+		// Resolve sanitized title
 		sanitizedTitle := sanitizeFilename(book.Title)
 		if sanitizedTitle == "" {
 			sanitizedTitle = fmt.Sprintf("book_%d", bookID)
 		}
-		bookFile := filepath.Join(targetDir, sanitizedTitle+".md")
 
-		// Idempotency: Skip if file already exists (unless force is requested)
+		// Idempotency: Skip if book is already chunked (unless force is requested)
+		chunk001 := filepath.Join(chunkedDir, fmt.Sprintf("%s__chunk_001.md", sanitizedTitle))
 		if !t.Force {
-			if _, err := os.Stat(bookFile); err == nil {
-				slog.Info("export: skipping already exported book", "taskID", t.TaskID, "bookID", bookID, "file", bookFile)
+			if _, err := os.Stat(chunk001); err == nil {
+				slog.Info("export chunked: skipping already chunked book", "taskID", t.TaskID, "bookID", bookID, "file", chunk001)
 				statuses = append(statuses, bookStatus{
 					Title:        book.Title,
 					BookID:       bookID,
 					SourceFormat: ext,
 					Status:       "Skipped",
-					Details:      "Already exported (file exists)",
+					Details:      "Already chunked (chunk_001.md exists)",
 				})
 				continue
 			}
 		}
 
-		slog.Info("export: converting file", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath, "format", ext)
+		slog.Info("export chunked: converting file", "taskID", t.TaskID, "bookID", bookID, "filePath", filePath, "format", ext)
 
-		// Dispatch to conversion
-		var mdText string
-		var convErr error
-		if ext == "kepub" {
-			mdText, convErr = books.ToMarkdown(ctx, filePath, "epub")
-		} else {
-			mdText, convErr = books.ToMarkdown(ctx, filePath, ext)
+		// If the book is image-only PDF, mark it as Skipped and continue (do NOT try to chunk an empty string)
+		// We first check the format. If PDF, convert to Markdown using standard ToMarkdown first to see if it's image-only
+		if ext == "pdf" {
+			_, checkErr := books.ToMarkdown(ctx, filePath, "pdf")
+			if checkErr == books.ErrImageOnlyPDF {
+				slog.Info("export chunked: skipped image-only PDF", "taskID", t.TaskID, "bookID", bookID)
+				statuses = append(statuses, bookStatus{
+					Title:        book.Title,
+					BookID:       bookID,
+					SourceFormat: ext,
+					Status:       "Skipped",
+					Details:      "Image-based (scanned) PDF contains no extractable text",
+				})
+				continue
+			}
 		}
 
+		// Convert and split
+		var formatToUse string
+		if ext == "kepub" {
+			formatToUse = "epub"
+		} else {
+			formatToUse = ext
+		}
+
+		chunks, convErr := books.ToChunkedMarkdown(ctx, filePath, formatToUse, t.ChunkSize, t.ChunkOverlap)
 		if convErr != nil {
 			if convErr == books.ErrImageOnlyPDF {
-				slog.Info("export: skipped image-only PDF", "taskID", t.TaskID, "bookID", bookID)
+				slog.Info("export chunked: skipped image-only PDF", "taskID", t.TaskID, "bookID", bookID)
 				statuses = append(statuses, bookStatus{
 					Title:        book.Title,
 					BookID:       bookID,
@@ -253,7 +273,7 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 					Details:      "Image-based (scanned) PDF contains no extractable text",
 				})
 			} else {
-				slog.Error("export: conversion failed", "taskID", t.TaskID, "bookID", bookID, "err", convErr)
+				slog.Error("export chunked: conversion/chunking failed", "taskID", t.TaskID, "bookID", bookID, "err", convErr)
 				statuses = append(statuses, bookStatus{
 					Title:        book.Title,
 					BookID:       bookID,
@@ -265,47 +285,82 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 			continue
 		}
 
+		// Write each chunk to its own file
 		escapedTitle := strings.ReplaceAll(book.Title, `"`, `\"`)
 		escapedAuthors := strings.ReplaceAll(authorsStr, `"`, `\"`)
 		escapedDatasetName := strings.ReplaceAll(dataset.Name, `"`, `\"`)
 
-		frontMatter := fmt.Sprintf(`---
+		// Format metadata section
+		var metadataSection string
+		if len(metadata) > 0 {
+			var sb strings.Builder
+			sb.WriteString("dataset_metadata:\n")
+			for _, m := range metadata {
+				// Quote values properly
+				escapedKey := strings.ReplaceAll(m.Key, `"`, `\"`)
+				escapedVal := strings.ReplaceAll(m.Value, `"`, `\"`)
+				sb.WriteString(fmt.Sprintf("  %s: \"%s\"\n", escapedKey, escapedVal))
+			}
+			metadataSection = sb.String()
+		}
+
+		for _, chunk := range chunks {
+			chunkFile := filepath.Join(chunkedDir, fmt.Sprintf("%s__chunk_%03d.md", sanitizedTitle, chunk.Index))
+			frontMatter := fmt.Sprintf(`---
 title: "%s"
 authors: "%s"
 book_id: %d
 source_format: "%s"
 dataset: "%s"
 exported_at: "%s"
----
+chunk_index: %d
+chunk_size: %d
+chunk_overlap: %d
+`, escapedTitle, escapedAuthors, bookID, ext, escapedDatasetName, time.Now().Format(time.RFC3339), chunk.Index, t.ChunkSize, t.ChunkOverlap)
 
-`, escapedTitle, escapedAuthors, bookID, ext, escapedDatasetName, time.Now().Format(time.RFC3339))
+			if metadataSection != "" {
+				frontMatter += metadataSection
+			}
+			frontMatter += "---\n\n"
 
-		err = os.WriteFile(bookFile, []byte(frontMatter+mdText), 0644)
-		if err != nil {
-			slog.Error("export: failed to write markdown file", "taskID", t.TaskID, "file", bookFile, "err", err)
+			err = os.WriteFile(chunkFile, []byte(frontMatter+chunk.Text), 0644)
+			if err != nil {
+				slog.Error("export chunked: failed to write chunk file", "taskID", t.TaskID, "file", chunkFile, "err", err)
+				statuses = append(statuses, bookStatus{
+					Title:        book.Title,
+					BookID:       bookID,
+					SourceFormat: ext,
+					Status:       "Failed",
+					Details:      fmt.Sprintf("Failed to write chunk %d: %v", chunk.Index, err),
+				})
+				// break or continue? Let's just record failed status once and stop writing chunks of this book
+				break
+			}
+		}
+
+		// If no failures occurred for this book, record exported status
+		var alreadyRecorded bool
+		for _, s := range statuses {
+			if s.BookID == bookID {
+				alreadyRecorded = true
+				break
+			}
+		}
+		if !alreadyRecorded {
 			statuses = append(statuses, bookStatus{
 				Title:        book.Title,
 				BookID:       bookID,
 				SourceFormat: ext,
-				Status:       "Failed",
-				Details:      fmt.Sprintf("Failed to write to file: %v", err),
+				Status:       "Exported",
+				Details:      fmt.Sprintf("%d chunks generated", len(chunks)),
 			})
-			continue
 		}
-
-		statuses = append(statuses, bookStatus{
-			Title:        book.Title,
-			BookID:       bookID,
-			SourceFormat: ext,
-			Status:       "Exported",
-			Details:      "-",
-		})
 	}
 
 	wMgr.SetMessage(t.TaskID, "Writing index file...")
 	wMgr.SetProgress(t.TaskID, 0.98)
 
-	// 4. Write dataset.md index
+	// 4. Write dataset.md index to the dataset root (NOT chunked/)
 	var indexBuilder strings.Builder
 	indexBuilder.WriteString(fmt.Sprintf("# Dataset: %s\n\n", dataset.Name))
 	if dataset.Description != "" {
@@ -323,7 +378,7 @@ exported_at: "%s"
 		indexBuilder.WriteString("\n")
 	}
 
-	indexBuilder.WriteString("## Books\n\n")
+	indexBuilder.WriteString("## Chunked Markdown\n\n")
 	if len(statuses) == 0 {
 		indexBuilder.WriteString("No books in this dataset.\n")
 	} else {
@@ -334,7 +389,9 @@ exported_at: "%s"
 		}
 	}
 
-	indexFile := filepath.Join(targetDir, "dataset.md")
+	indexBuilder.WriteString(fmt.Sprintf("\n---\nChunked via langchain MarkdownTextSplitter (chunk_size=%d, overlap=%d).\n", t.ChunkSize, t.ChunkOverlap))
+
+	indexFile := filepath.Join(root, "dataset.md")
 	err = os.WriteFile(indexFile, []byte(indexBuilder.String()), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write dataset.md index file: %w", err)
@@ -342,33 +399,7 @@ exported_at: "%s"
 
 	wMgr.SetProgress(t.TaskID, 1.0)
 	wMgr.SetMessage(t.TaskID, "Finished")
-	slog.Info("export: task finished successfully", "taskID", t.TaskID, "datasetID", t.DatasetID)
+	slog.Info("export chunked: task finished successfully", "taskID", t.TaskID, "datasetID", t.DatasetID)
 
 	return nil
-}
-
-func sanitizeFilename(name string) string {
-	badChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
-	for _, c := range badChars {
-		name = strings.ReplaceAll(name, c, "_")
-	}
-	return strings.TrimSpace(name)
-}
-
-func chooseFormat(formats []calibredb.Data) (calibredb.Data, bool) {
-	priority := []string{"TXT", "EPUB", "PDF", "HTML"}
-	for _, p := range priority {
-		for _, f := range formats {
-			if strings.ToUpper(f.Format) == p {
-				return f, true
-			}
-		}
-	}
-	// kepub/kepa check
-	for _, f := range formats {
-		if strings.ToUpper(f.Format) == "KEPUB" {
-			return f, true
-		}
-	}
-	return calibredb.Data{}, false
 }

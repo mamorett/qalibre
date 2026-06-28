@@ -144,13 +144,14 @@ type FlaskSettings struct {
 }
 
 type Dataset struct {
-	ID           int           `db:"id"            json:"id"`
-	UUID         string        `db:"uuid"          json:"uuid"`
-	Name         string        `db:"name"          json:"name"`
-	Description  string        `db:"description"   json:"description"`
-	UserID       sql.NullInt64 `db:"user_id"       json:"user_id,omitempty"`
-	Created      time.Time     `db:"created"       json:"created"`
-	LastModified time.Time     `db:"last_modified" json:"last_modified"`
+	ID              int           `db:"id"               json:"id"`
+	UUID            string        `db:"uuid"             json:"uuid"`
+	Name            string        `db:"name"             json:"name"`
+	Description     string        `db:"description"      json:"description"`
+	ExportDirectory string        `db:"export_directory" json:"export_directory"`
+	UserID          sql.NullInt64 `db:"user_id"          json:"user_id,omitempty"`
+	Created         time.Time     `db:"created"          json:"created"`
+	LastModified    time.Time     `db:"last_modified"    json:"last_modified"`
 }
 
 type DatasetBook struct {

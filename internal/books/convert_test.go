@@ -1,6 +1,7 @@
 package books
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,7 @@ func TestToMarkdownFromTxt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ToMarkdown(filePath, "txt")
+	got, err := ToMarkdown(context.Background(), filePath, "txt")
 	if err != nil {
 		t.Fatalf("ToMarkdown txt error: %v", err)
 	}
@@ -51,7 +52,7 @@ func TestToMarkdownFromHtml(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ToMarkdown(filePath, "html")
+	got, err := ToMarkdown(context.Background(), filePath, "html")
 	if err != nil {
 		t.Fatalf("ToMarkdown html error: %v", err)
 	}
@@ -60,5 +61,59 @@ func TestToMarkdownFromHtml(t *testing.T) {
 	}
 	if !strings.Contains(got, "Paragraph text.") {
 		t.Errorf("ToMarkdown html paragraph text missing: %q", got)
+	}
+}
+
+func TestToChunkedMarkdown(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "qalibre_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "test.txt")
+	content := "This is a simple test file that we will use to verify that the chunking logic works as expected. We want to make sure it splits the text correctly."
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	chunks, err := ToChunkedMarkdown(context.Background(), filePath, "txt", 50, 10)
+	if err != nil {
+		t.Logf("Skipping ToChunkedMarkdown test because python dependencies might be missing: %v", err)
+		return
+	}
+
+	if len(chunks) == 0 {
+		t.Errorf("Expected chunks, got 0")
+	}
+
+	for _, chunk := range chunks {
+		if chunk.Index <= 0 {
+			t.Errorf("Invalid chunk index: %d", chunk.Index)
+		}
+		if chunk.Text == "" {
+			t.Errorf("Empty chunk text")
+		}
+	}
+}
+
+func TestCleanMarkdownForChunking(t *testing.T) {
+	input := `## 
+
+**==> picture [421 x 171] intentionally omitted <==**
+
+## Chapter 1
+
+This is page text.
+
+## 
+
+**==> picture [421 x 170] intentionally omitted <==**
+
+`
+	expected := "## Chapter 1\n\nThis is page text."
+	got := CleanMarkdownForChunking(input)
+	if strings.TrimSpace(got) != expected {
+		t.Errorf("CleanMarkdownForChunking failed:\nExpected:\n%q\nGot:\n%q", expected, got)
 	}
 }

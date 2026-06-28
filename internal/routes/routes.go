@@ -92,6 +92,7 @@ func (rm *RouteManager) RegisterRoutes(r chi.Router) {
 
 			ds.Get("/api/v1/dataset/{id}/available-books", rm.ListAvailableBooks)
 			ds.Post("/api/v1/dataset/{id}/export", rm.ExportDataset)
+			ds.Post("/api/v1/dataset/{id}/export-chunked", rm.ExportDatasetChunked)
 		})
 	})
 }

@@ -40,7 +40,9 @@ type BookResponse struct {
 	IsArchived    bool                      `json:"is_archived"`
 	ReadStatus    bool                      `json:"read_status"`
 	Shelves       []int                     `json:"shelves"`
-	CustomColumns []CustomColumnValResponse `json:"custom_columns"`
+	CustomColumns      []CustomColumnValResponse `json:"custom_columns"`
+	IsConvertedPlain   bool                      `json:"is_converted_plain"`
+	IsConvertedChunked bool                      `json:"is_converted_chunked"`
 }
 
 type FormatResponse struct {

@@ -19,6 +19,8 @@ export interface BookRow {
   read_status?: boolean;
   comments?: string;
   rating?: number;
+  is_converted_plain?: boolean;
+  is_converted_chunked?: boolean;
 }
 
 export interface BookListResponse {

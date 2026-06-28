@@ -35,11 +35,6 @@ func (rm *RouteManager) CancelTask(w http.ResponseWriter, r *http.Request) {
 	}
 	u := user.(*appdb.User)
 
-	if !auth.HasRole(u.Role, config.RoleAdmin) {
-		rm.ErrorJSON(w, "Admin access required", http.StatusForbidden)
-		return
-	}
-
 	var req struct {
 		TaskID string `json:"task_id"`
 	}
@@ -49,6 +44,23 @@ func (rm *RouteManager) CancelTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wMgr := worker.GetInstance(rm.DB)
+
+	// If not admin, check if the task belongs to the current user
+	if !auth.HasRole(u.Role, config.RoleAdmin) {
+		tasksList := wMgr.GetTasks(u.Name, false)
+		found := false
+		for _, t := range tasksList {
+			if idVal, ok := t["task_id"].(string); ok && idVal == req.TaskID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			rm.ErrorJSON(w, "Access denied: task not found or does not belong to you", http.StatusForbidden)
+			return
+		}
+	}
+
 	wMgr.CancelTask(req.TaskID)
 
 	rm.WriteJSON(w, map[string]interface{}{"success": true})
