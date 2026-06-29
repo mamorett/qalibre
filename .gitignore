@@ -55,7 +55,7 @@ test/*TestSummary*.html
 .vscode/
 
 ### Go ###
-qalibre
+/qalibre
 build_test
 /temp
 /cache
