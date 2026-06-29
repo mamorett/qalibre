@@ -17,10 +17,11 @@ import {
   MenuDivider,
 } from "@blueprintjs/core";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { api } from "../api/client";
 import { useDatasets, useStats } from "../hooks/useDatasets";
+import { UploadManager, UploadManagerRef } from "./UploadManager";
 
 export function Layout() {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ export function Layout() {
   const { user, refetchSession } = useApp();
   const [searchVal, setSearchVal] = useState("");
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const uploadManagerRef = useRef<UploadManagerRef>(null);
+
+  const canUpload = !!(user?.role_admin || user?.role_upload);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   // Fetch datasets list for quick-switch dropdown
@@ -271,6 +275,17 @@ export function Layout() {
               >
                 Shelves
               </Button>
+              {canUpload && (
+                <Button
+                  alignText="left"
+                  icon="upload"
+                  variant="minimal"
+                  fill
+                  onClick={() => uploadManagerRef.current?.triggerUpload()}
+                >
+                  Upload Books
+                </Button>
+              )}
             </div>
           </div>
 
@@ -479,6 +494,7 @@ export function Layout() {
           </div>
         </div>
       </Dialog>
+      <UploadManager ref={uploadManagerRef} />
     </>
   );
 }

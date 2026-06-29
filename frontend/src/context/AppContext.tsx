@@ -9,6 +9,7 @@ export interface UserSession {
   role_edit: boolean;
   role_download: boolean;
   role_upload: boolean;
+  role_delete_books: boolean;
   locale: string;
 }
 
@@ -67,6 +68,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         role_edit: true,
         role_download: true,
         role_upload: true,
+        role_delete_books: true,
         locale: "en"
       });
       setConfig({

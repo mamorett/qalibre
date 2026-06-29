@@ -30,6 +30,7 @@ func (rm *RouteManager) GetSession(w http.ResponseWriter, r *http.Request) {
 			"role_edit":     auth.HasRole(user.Role, config.RoleEdit),
 			"role_download": auth.HasRole(user.Role, config.RoleDownload),
 			"role_upload":   auth.HasRole(user.Role, config.RoleUpload),
+			"role_delete_books": auth.HasRole(user.Role, config.RoleDeleteBooks),
 			"locale":        user.Locale,
 		}
 	}

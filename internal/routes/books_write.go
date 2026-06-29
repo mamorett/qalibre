@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/qalibre/qalibre/internal/auth"
 	"github.com/qalibre/qalibre/internal/books"
 	"github.com/qalibre/qalibre/internal/calibredb"
+	"github.com/qalibre/qalibre/internal/config"
 )
 
 // EditBook handles PATCH /api/v1/book/{id}
@@ -153,6 +156,102 @@ func (rm *RouteManager) ToggleArchived(w http.ResponseWriter, r *http.Request) {
 		_, _ = rm.DB.Exec(`
 			UPDATE archived_book SET is_archived = ?, last_modified = ? 
 			WHERE id = ?`, newArch, time.Now(), arch.ID)
+	}
+
+	rm.WriteJSON(w, map[string]interface{}{"success": true})
+}
+
+// DeleteBook handles DELETE /api/v1/book/{id}
+func (rm *RouteManager) DeleteBook(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		rm.ErrorJSON(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		rm.ErrorJSON(w, "Login required", http.StatusUnauthorized)
+		return
+	}
+	u := user.(*appdb.User)
+
+	if !auth.HasRole(u.Role, config.RoleDeleteBooks) && !auth.HasRole(u.Role, config.RoleAdmin) {
+		rm.ErrorJSON(w, "Permission denied", http.StatusForbidden)
+		return
+	}
+
+	// 1. Fetch the book path before deletion
+	var path string
+	err = rm.DB.Get(&path, "SELECT path FROM calibre.books WHERE id = ? LIMIT 1", id)
+	if err != nil {
+		rm.ErrorJSON(w, "Book not found", http.StatusNotFound)
+		return
+	}
+
+	// 2. Start transaction
+	tx, err := rm.DB.Beginx()
+	if err != nil {
+		rm.ErrorJSON(w, "Failed to start transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// 3. Delete from Calibre tables
+	_, _ = tx.Exec("DELETE FROM calibre.books WHERE id = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_authors_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_tags_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_series_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_publishers_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_languages_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.comments WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.identifiers WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.books_ratings_link WHERE book = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.data WHERE book = ?", id)
+
+	// Clean up custom columns
+	type customCol struct {
+		ID int `db:"id"`
+	}
+	var cols []customCol
+	_ = tx.Select(&cols, "SELECT id FROM calibre.custom_columns")
+	for _, col := range cols {
+		_, _ = tx.Exec(fmt.Sprintf("DELETE FROM calibre.books_custom_column_%d_link WHERE book = ?", col.ID), id)
+		_, _ = tx.Exec(fmt.Sprintf("DELETE FROM calibre.custom_column_%d WHERE book = ?", col.ID), id)
+	}
+
+	// 4. Delete from app.db tables
+	_, _ = tx.Exec("DELETE FROM dataset_book WHERE book_id = ?", id)
+	_, _ = tx.Exec("DELETE FROM book_read_link WHERE book_id = ?", id)
+	_, _ = tx.Exec("DELETE FROM archived_book WHERE book_id = ?", id)
+	_, _ = tx.Exec("DELETE FROM calibre.metadata_dirtied WHERE book = ?", id)
+
+	// Commit Transaction
+	err = tx.Commit()
+	if err != nil {
+		rm.ErrorJSON(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Delete physical files from disk
+	if path != "" {
+		calibreDir := rm.Cfg.GetCalibreDir()
+		fullPath := filepath.Join(calibreDir, path)
+		
+		absCalibre, err1 := filepath.Abs(calibreDir)
+		absFull, err2 := filepath.Abs(fullPath)
+		if err1 == nil && err2 == nil && strings.HasPrefix(absFull, absCalibre) {
+			slog.Info("deleting book folder on disk", "path", fullPath)
+			_ = os.RemoveAll(fullPath)
+			
+			authorDir := filepath.Dir(fullPath)
+			if files, err := os.ReadDir(authorDir); err == nil && len(files) == 0 {
+				_ = os.Remove(authorDir)
+			}
+		} else {
+			slog.Warn("prevented deletion of path outside calibre directory", "path", fullPath)
+		}
 	}
 
 	rm.WriteJSON(w, map[string]interface{}{"success": true})

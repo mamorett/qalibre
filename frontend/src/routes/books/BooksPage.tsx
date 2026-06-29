@@ -3,15 +3,20 @@ import { useBooks } from "../../hooks/useBooks";
 import { RowCard } from "../../components/RowCard";
 import { BookDetailDialog } from "../../components/BookDetailDialog";
 import { Pagination } from "../../components/Pagination";
-import { Spinner, NonIdealState, Button } from "@blueprintjs/core";
+import { Spinner, NonIdealState, Button, Alert } from "@blueprintjs/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { useState } from "react";
+import { useApp } from "../../context/AppContext";
 
 export default function BooksPage() {
+  const { user } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [deleteBookId, setDeleteBookId] = useState<number | null>(null);
+
+  const canDelete = !!(user?.role_admin || user?.role_delete_books);
 
   // Extract query parameters
   const search = searchParams.get("q") || "";
@@ -42,6 +47,13 @@ export default function BooksPage() {
 
   const toggleArchivedMutation = useMutation({
     mutationFn: (bookId: number) => api(`/ajax/togglearchived/${bookId}`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
+  });
+
+  const deleteBookMutation = useMutation({
+    mutationFn: (bookId: number) => api(`/api/v1/book/${bookId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
     },
@@ -129,6 +141,7 @@ export default function BooksPage() {
             onClick={() => setSelectedBookId(book.id)}
             onToggleRead={() => toggleReadMutation.mutate(book.id)}
             onToggleArchived={() => toggleArchivedMutation.mutate(book.id)}
+            onDelete={canDelete ? () => setDeleteBookId(book.id) : undefined}
           />
         ))}
       </div>
@@ -141,6 +154,33 @@ export default function BooksPage() {
           onClose={() => setSelectedBookId(null)}
         />
       )}
+
+      {/* Delete Confirmation Alert */}
+      <Alert
+        cancelButtonText="Cancel"
+        confirmButtonText="Delete"
+        icon="trash"
+        intent="danger"
+        isOpen={deleteBookId !== null}
+        loading={deleteBookMutation.isPending}
+        onCancel={() => setDeleteBookId(null)}
+        onConfirm={async () => {
+          if (deleteBookId !== null) {
+            try {
+              await deleteBookMutation.mutateAsync(deleteBookId);
+            } catch (err) {
+              console.error("Failed to delete book", err);
+            } finally {
+              setDeleteBookId(null);
+            }
+          }
+        }}
+        style={{ borderRadius: 0, backgroundColor: "var(--bg-primary)" }}
+      >
+        <p>
+          Are you sure you want to permanently delete this book? This will remove all database metadata and delete the files from your Calibre library storage.
+        </p>
+      </Alert>
     </div>
   );
 }

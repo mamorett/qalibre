@@ -40,6 +40,7 @@ func (rm *RouteManager) RegisterRoutes(r chi.Router) {
 		// Optional basic/session auth check
 		authGroup.Get("/api/v1/book/{id}", rm.GetBook)
 		authGroup.Patch("/api/v1/book/{id}", rm.EditBook)
+		authGroup.Delete("/api/v1/book/{id}", rm.DeleteBook)
 		authGroup.Get("/api/v1/shelves", rm.GetShelves)
 		authGroup.Get("/api/v1/meta/custom-columns", rm.GetCustomColumns)
 		authGroup.Get("/api/v1/stats", rm.GetStats)

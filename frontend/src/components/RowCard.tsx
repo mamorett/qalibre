@@ -9,6 +9,7 @@ interface RowCardProps {
   onToggleRead?: () => void;
   onToggleArchived?: () => void;
   onRemove?: () => void;
+  onDelete?: () => void;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
@@ -31,6 +32,7 @@ export function RowCard({
   onToggleRead = () => {},
   onToggleArchived = () => {},
   onRemove,
+  onDelete,
   selectable = false,
   selected = false,
   onToggleSelect = () => {},
@@ -101,6 +103,16 @@ export function RowCard({
                   className={book.is_archived ? "bp6-intent-warning" : ""}
                   style={{ padding: "2px 6px", minHeight: "24px" }}
                 />
+                {onDelete && (
+                  <Button
+                    icon="trash"
+                    variant="minimal"
+                    title="Delete Book"
+                    onClick={onDelete}
+                    intent="danger"
+                    style={{ padding: "2px 6px", minHeight: "24px" }}
+                  />
+                )}
               </>
             )}
           </div>
