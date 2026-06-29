@@ -50,6 +50,7 @@ To run Qalibre from source or enable native document conversions, the following 
 | **`uv`** (or **`pymupdf4llm`**) | Markdown conversion engine (PDF, EPUB, HTML) | `curl -LsSf https://astral.sh/uv/install.sh | sh` or `pip install pymupdf4llm` | `brew install uv` or `pip install pymupdf4llm` | `apk add uv` (edge) or copy from docker image |
 | **`imagemagick`** | Cover page thumbnail generation | `sudo apt install imagemagick` | `brew install imagemagick` | `apk add imagemagick` |
 | **`p7zip`** | comic book archive parsing | `sudo apt install p7zip-full` | `brew install p7zip` | `apk add p7zip` |
+| **`poppler-utils`** | PDF text extraction (included in Docker image) | `sudo apt install poppler-utils` | `brew install poppler-utils` | `apk add poppler-utils` |
 
 ---
 
@@ -157,7 +158,7 @@ cd ..
 ```
 
 #### 2. Compile and Launch the Go Server
-Ensure you have **Go 1.22+** installed. [godelw](file:///gorgon/dev/qalibre/godelw) handles the Go build:
+Ensure you have **Go 1.25+** installed. [godelw](file:///gorgon/dev/qalibre/godelw) handles the Go build:
 
 ```bash
 # Verify everything (format + check + test)
