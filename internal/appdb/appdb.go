@@ -150,6 +150,13 @@ type Dataset struct {
 	Description     string        `db:"description"      json:"description"`
 	ExportDirectory string        `db:"export_directory" json:"export_directory"`
 	UserID          sql.NullInt64 `db:"user_id"          json:"user_id,omitempty"`
+	S3Endpoint      string        `db:"s3_endpoint"      json:"s3_endpoint"`
+	S3Region        string        `db:"s3_region"        json:"s3_region"`
+	S3Bucket        string        `db:"s3_bucket"        json:"s3_bucket"`
+	S3AccessKey     string        `db:"s3_access_key"    json:"s3_access_key"`
+	S3SecretKey     string        `db:"s3_secret_key"    json:"s3_secret_key"`
+	S3UseSSL        bool          `db:"s3_use_ssl"       json:"s3_use_ssl"`
+	S3ForcePathStyle bool         `db:"s3_force_path_style" json:"s3_force_path_style"`
 	Created         time.Time     `db:"created"          json:"created"`
 	LastModified    time.Time     `db:"last_modified"    json:"last_modified"`
 }

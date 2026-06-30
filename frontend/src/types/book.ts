@@ -21,6 +21,7 @@ export interface BookRow {
   rating?: number;
   is_converted_plain?: boolean;
   is_converted_chunked?: boolean;
+  formats?: { id: number; format: string; size: number; name: string }[];
 }
 
 export interface BookListResponse {

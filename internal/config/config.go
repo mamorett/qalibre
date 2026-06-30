@@ -196,6 +196,15 @@ type Settings struct {
 	ConfigLimiterURI        string `db:"config_limiter_uri"`
 	ConfigLimiterOptions    string `db:"config_limiter_options"`
 	ConfigCheckExtensions   bool   `db:"config_check_extensions"`
+
+	// Generic S3 Storage
+	ConfigS3Endpoint       string `db:"config_s3_endpoint"`
+	ConfigS3Region         string `db:"config_s3_region"`
+	ConfigS3Bucket         string `db:"config_s3_bucket"`
+	ConfigS3AccessKey      string `db:"config_s3_access_key"`
+	ConfigS3SecretKey      string `db:"config_s3_secret_key"`
+	ConfigS3UseSSL         bool   `db:"config_s3_use_ssl"`
+	ConfigS3ForcePathStyle bool   `db:"config_s3_force_path_style"`
 }
 
 // Config wraps Settings with a db handle and dirty-tracking mutex.
@@ -333,7 +342,14 @@ func (c *Config) Save() error {
 		config_ratelimiter=:config_ratelimiter,
 		config_limiter_uri=:config_limiter_uri,
 		config_limiter_options=:config_limiter_options,
-		config_check_extensions=:config_check_extensions
+		config_check_extensions=:config_check_extensions,
+		config_s3_endpoint=:config_s3_endpoint,
+		config_s3_region=:config_s3_region,
+		config_s3_bucket=:config_s3_bucket,
+		config_s3_access_key=:config_s3_access_key,
+		config_s3_secret_key=:config_s3_secret_key,
+		config_s3_use_ssl=:config_s3_use_ssl,
+		config_s3_force_path_style=:config_s3_force_path_style
 	WHERE id=1`, c.Settings)
 	return err
 }
@@ -572,5 +588,12 @@ func sanitizeSettings(db *sqlx.DB) {
 		config_ratelimiter = COALESCE(config_ratelimiter, 0),
 		config_limiter_uri = COALESCE(config_limiter_uri, ''),
 		config_limiter_options = COALESCE(config_limiter_options, ''),
-		config_check_extensions = COALESCE(config_check_extensions, 0)`)
+		config_check_extensions = COALESCE(config_check_extensions, 0),
+		config_s3_endpoint = COALESCE(config_s3_endpoint, ''),
+		config_s3_region = COALESCE(config_s3_region, ''),
+		config_s3_bucket = COALESCE(config_s3_bucket, ''),
+		config_s3_access_key = COALESCE(config_s3_access_key, ''),
+		config_s3_secret_key = COALESCE(config_s3_secret_key, ''),
+		config_s3_use_ssl = COALESCE(config_s3_use_ssl, 1),
+		config_s3_force_path_style = COALESCE(config_s3_force_path_style, 1)`)
 }

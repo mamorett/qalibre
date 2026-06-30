@@ -200,7 +200,14 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 			config_ratelimiter INTEGER,
 			config_limiter_uri TEXT,
 			config_limiter_options TEXT,
-			config_check_extensions INTEGER
+			config_check_extensions INTEGER,
+			config_s3_endpoint TEXT DEFAULT '',
+			config_s3_region TEXT DEFAULT '',
+			config_s3_bucket TEXT DEFAULT '',
+			config_s3_access_key TEXT DEFAULT '',
+			config_s3_secret_key TEXT DEFAULT '',
+			config_s3_use_ssl INTEGER DEFAULT 1,
+			config_s3_force_path_style INTEGER DEFAULT 1
 		)`,
 		`CREATE TABLE IF NOT EXISTS dataset (
 			id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +216,13 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 			description      TEXT DEFAULT '',
 			export_directory TEXT NOT NULL DEFAULT '',
 			user_id          INTEGER,
+			s3_endpoint      TEXT DEFAULT '',
+			s3_region        TEXT DEFAULT '',
+			s3_bucket        TEXT DEFAULT '',
+			s3_access_key    TEXT DEFAULT '',
+			s3_secret_key    TEXT DEFAULT '',
+			s3_use_ssl       INTEGER DEFAULT 1,
+			s3_force_path_style INTEGER DEFAULT 1,
 			created          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			last_modified    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -262,6 +276,158 @@ func InitSchema(db *sqlx.DB, hashedAdminPassword string) error {
 			slog.Error("appdb: failed to migrate dataset table to add export_directory", "err", err)
 		} else {
 			slog.Info("appdb: added export_directory column to dataset table")
+		}
+	}
+
+	// Idempotent migration check for S3 config in settings table
+	var hasS3Endpoint bool
+	var hasS3Region bool
+	var hasS3Bucket bool
+	var hasS3AccessKey bool
+	var hasS3SecretKey bool
+	var hasS3UseSSL bool
+	var hasS3ForcePathStyle bool
+
+	rowsSettings, err := db.Query("PRAGMA table_info(settings)")
+	if err == nil {
+		defer rowsSettings.Close()
+		for rowsSettings.Next() {
+			var cid int
+			var name string
+			var typeStr string
+			var notnull int
+			var dfltVal interface{}
+			var pk int
+			if err := rowsSettings.Scan(&cid, &name, &typeStr, &notnull, &dfltVal, &pk); err == nil {
+				switch name {
+				case "config_s3_endpoint":
+					hasS3Endpoint = true
+				case "config_s3_region":
+					hasS3Region = true
+				case "config_s3_bucket":
+					hasS3Bucket = true
+				case "config_s3_access_key":
+					hasS3AccessKey = true
+				case "config_s3_secret_key":
+					hasS3SecretKey = true
+				case "config_s3_use_ssl":
+					hasS3UseSSL = true
+				case "config_s3_force_path_style":
+					hasS3ForcePathStyle = true
+				}
+			}
+		}
+	}
+
+	if !hasS3Endpoint {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_endpoint TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_endpoint", "err", err)
+		}
+	}
+	if !hasS3Region {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_region TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_region", "err", err)
+		}
+	}
+	if !hasS3Bucket {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_bucket TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_bucket", "err", err)
+		}
+	}
+	if !hasS3AccessKey {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_access_key TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_access_key", "err", err)
+		}
+	}
+	if !hasS3SecretKey {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_secret_key TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_secret_key", "err", err)
+		}
+	}
+	if !hasS3UseSSL {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_use_ssl INTEGER DEFAULT 1"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_use_ssl", "err", err)
+		}
+	}
+	if !hasS3ForcePathStyle {
+		if _, err := db.Exec("ALTER TABLE settings ADD COLUMN config_s3_force_path_style INTEGER DEFAULT 1"); err != nil {
+			slog.Error("appdb: failed to migrate settings table to add config_s3_force_path_style", "err", err)
+		}
+	}
+
+	// Idempotent migration check for S3 columns in dataset table
+	var hasDatasetS3Endpoint bool
+	var hasDatasetS3Region bool
+	var hasDatasetS3Bucket bool
+	var hasDatasetS3AccessKey bool
+	var hasDatasetS3SecretKey bool
+	var hasDatasetS3UseSSL bool
+	var hasDatasetS3ForcePathStyle bool
+
+	rowsDataset, err := db.Query("PRAGMA table_info(dataset)")
+	if err == nil {
+		defer rowsDataset.Close()
+		for rowsDataset.Next() {
+			var cid int
+			var name string
+			var typeStr string
+			var notnull int
+			var dfltVal interface{}
+			var pk int
+			if err := rowsDataset.Scan(&cid, &name, &typeStr, &notnull, &dfltVal, &pk); err == nil {
+				switch name {
+				case "s3_endpoint":
+					hasDatasetS3Endpoint = true
+				case "s3_region":
+					hasDatasetS3Region = true
+				case "s3_bucket":
+					hasDatasetS3Bucket = true
+				case "s3_access_key":
+					hasDatasetS3AccessKey = true
+				case "s3_secret_key":
+					hasDatasetS3SecretKey = true
+				case "s3_use_ssl":
+					hasDatasetS3UseSSL = true
+				case "s3_force_path_style":
+					hasDatasetS3ForcePathStyle = true
+				}
+			}
+		}
+	}
+
+	if !hasDatasetS3Endpoint {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_endpoint TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_endpoint", "err", err)
+		}
+	}
+	if !hasDatasetS3Region {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_region TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_region", "err", err)
+		}
+	}
+	if !hasDatasetS3Bucket {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_bucket TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_bucket", "err", err)
+		}
+	}
+	if !hasDatasetS3AccessKey {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_access_key TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_access_key", "err", err)
+		}
+	}
+	if !hasDatasetS3SecretKey {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_secret_key TEXT DEFAULT ''"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_secret_key", "err", err)
+		}
+	}
+	if !hasDatasetS3UseSSL {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_use_ssl INTEGER DEFAULT 1"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_use_ssl", "err", err)
+		}
+	}
+	if !hasDatasetS3ForcePathStyle {
+		if _, err := db.Exec("ALTER TABLE dataset ADD COLUMN s3_force_path_style INTEGER DEFAULT 1"); err != nil {
+			slog.Error("appdb: failed to migrate dataset table to add s3_force_path_style", "err", err)
 		}
 	}
 

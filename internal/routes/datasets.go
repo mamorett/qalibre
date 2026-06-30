@@ -40,22 +40,43 @@ type DatasetSummary struct {
 
 type DatasetDetail struct {
 	DatasetSummary
-	Metadata        []MetadataItem `json:"metadata"`
-	ExportDirectory string         `json:"export_directory"`
+	Metadata         []MetadataItem `json:"metadata"`
+	ExportDirectory  string         `json:"export_directory"`
+	S3Endpoint       string         `json:"s3_endpoint"`
+	S3Region         string         `json:"s3_region"`
+	S3Bucket         string         `json:"s3_bucket"`
+	S3AccessKey      string         `json:"s3_access_key"`
+	S3SecretKey      string         `json:"s3_secret_key"`
+	S3UseSSL         bool           `json:"s3_use_ssl"`
+	S3ForcePathStyle bool           `json:"s3_force_path_style"`
 }
 
 type CreateDatasetRequest struct {
-	Name            string         `json:"name"`
-	Description     string         `json:"description"`
-	Metadata        []MetadataItem `json:"metadata"`
-	ExportDirectory string         `json:"export_directory"`
+	Name             string         `json:"name"`
+	Description      string         `json:"description"`
+	Metadata         []MetadataItem `json:"metadata"`
+	ExportDirectory  string         `json:"export_directory"`
+	S3Endpoint       string         `json:"s3_endpoint"`
+	S3Region         string         `json:"s3_region"`
+	S3Bucket         string         `json:"s3_bucket"`
+	S3AccessKey      string         `json:"s3_access_key"`
+	S3SecretKey      string         `json:"s3_secret_key"`
+	S3UseSSL         bool           `json:"s3_use_ssl"`
+	S3ForcePathStyle bool           `json:"s3_force_path_style"`
 }
 
 type UpdateDatasetRequest struct {
-	Name            *string         `json:"name,omitempty"`
-	Description     *string         `json:"description,omitempty"`
-	Metadata        *[]MetadataItem `json:"metadata,omitempty"` // nil = leave as-is
-	ExportDirectory *string         `json:"export_directory,omitempty"`
+	Name             *string         `json:"name,omitempty"`
+	Description      *string         `json:"description,omitempty"`
+	Metadata         *[]MetadataItem `json:"metadata,omitempty"` // nil = leave as-is
+	ExportDirectory  *string         `json:"export_directory,omitempty"`
+	S3Endpoint       *string         `json:"s3_endpoint,omitempty"`
+	S3Region         *string         `json:"s3_region,omitempty"`
+	S3Bucket         *string         `json:"s3_bucket,omitempty"`
+	S3AccessKey      *string         `json:"s3_access_key,omitempty"`
+	S3SecretKey      *string         `json:"s3_secret_key,omitempty"`
+	S3UseSSL         *bool           `json:"s3_use_ssl,omitempty"`
+	S3ForcePathStyle *bool           `json:"s3_force_path_style,omitempty"`
 }
 
 type AddBooksRequest struct {
@@ -164,11 +185,12 @@ func (rm *RouteManager) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	res, err := tx.Exec(`
-		INSERT INTO dataset (uuid, name, description, export_directory, user_id, created, last_modified)
-		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		uuidStr, payload.Name, payload.Description, payload.ExportDirectory, userID)
+		INSERT INTO dataset (uuid, name, description, export_directory, user_id, s3_endpoint, s3_region, s3_bucket, s3_access_key, s3_secret_key, s3_use_ssl, s3_force_path_style, created, last_modified)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		uuidStr, payload.Name, payload.Description, payload.ExportDirectory, userID,
+		payload.S3Endpoint, payload.S3Region, payload.S3Bucket, payload.S3AccessKey, payload.S3SecretKey, payload.S3UseSSL, payload.S3ForcePathStyle)
 	if err != nil {
-		rm.ErrorJSON(w, "Failed to insert dataset", http.StatusInternalServerError)
+		rm.ErrorJSON(w, "Failed to insert dataset: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -276,6 +298,56 @@ func (rm *RouteManager) UpdateDataset(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec("UPDATE dataset SET export_directory = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", dir, id)
 		if err != nil {
 			rm.ErrorJSON(w, "Failed to update dataset export directory", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if payload.S3Endpoint != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_endpoint = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3Endpoint, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 endpoint", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3Region != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_region = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3Region, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 region", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3Bucket != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_bucket = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3Bucket, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 bucket", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3AccessKey != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_access_key = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3AccessKey, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 access key", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3SecretKey != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_secret_key = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3SecretKey, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 secret key", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3UseSSL != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_use_ssl = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3UseSSL, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 use SSL setting", http.StatusInternalServerError)
+			return
+		}
+	}
+	if payload.S3ForcePathStyle != nil {
+		_, err = tx.Exec("UPDATE dataset SET s3_force_path_style = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?", *payload.S3ForcePathStyle, id)
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to update dataset S3 force path style setting", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -801,9 +873,9 @@ func (rm *RouteManager) ExportDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var dCount int
-	err = rm.DB.Get(&dCount, "SELECT COUNT(*) FROM dataset WHERE id = ?", datasetID)
-	if err != nil || dCount == 0 {
+	var d appdb.Dataset
+	err = rm.DB.Get(&d, "SELECT * FROM dataset WHERE id = ?", datasetID)
+	if err != nil {
 		rm.ErrorJSON(w, "Dataset not found", http.StatusNotFound)
 		return
 	}
@@ -814,30 +886,45 @@ func (rm *RouteManager) ExportDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload.Path = strings.TrimSpace(payload.Path)
-	if payload.Path == "" {
-		rm.ErrorJSON(w, "Export path is required", http.StatusBadRequest)
-		return
+	s3Enabled := strings.TrimSpace(d.S3Endpoint) != "" && strings.TrimSpace(d.S3Bucket) != ""
+
+	path := strings.TrimSpace(payload.Path)
+	if path == "" && !s3Enabled {
+		path = strings.TrimSpace(d.ExportDirectory)
 	}
 
-	if !filepath.IsAbs(payload.Path) {
-		rm.ErrorJSON(w, "Export path must be an absolute path", http.StatusBadRequest)
-		return
-	}
+	if s3Enabled {
+		tempDir, err := os.MkdirTemp("", "qalibre-export-s3-*")
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to create temporary directory for S3 upload", http.StatusInternalServerError)
+			return
+		}
+		path = tempDir
+	} else {
+		if path == "" {
+			rm.ErrorJSON(w, "Export path is required", http.StatusBadRequest)
+			return
+		}
 
-	err = os.MkdirAll(payload.Path, 0755)
-	if err != nil {
-		rm.ErrorJSON(w, fmt.Sprintf("Failed to create export path: %v", err), http.StatusBadRequest)
-		return
-	}
+		if !filepath.IsAbs(path) {
+			rm.ErrorJSON(w, "Export path must be an absolute path", http.StatusBadRequest)
+			return
+		}
 
-	testFile := filepath.Join(payload.Path, fmt.Sprintf(".export_test_%d", time.Now().UnixNano()))
-	err = os.WriteFile(testFile, []byte("test"), 0644)
-	if err != nil {
-		rm.ErrorJSON(w, fmt.Sprintf("Export path is not writable: %v", err), http.StatusBadRequest)
-		return
+		err = os.MkdirAll(path, 0755)
+		if err != nil {
+			rm.ErrorJSON(w, fmt.Sprintf("Failed to create export path: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		testFile := filepath.Join(path, fmt.Sprintf(".export_test_%d", time.Now().UnixNano()))
+		err = os.WriteFile(testFile, []byte("test"), 0644)
+		if err != nil {
+			rm.ErrorJSON(w, fmt.Sprintf("Export path is not writable: %v", err), http.StatusBadRequest)
+			return
+		}
+		_ = os.Remove(testFile)
 	}
-	_ = os.Remove(testFile)
 
 	user, ok := auth.GetUserFromContext(r)
 	var username string
@@ -850,7 +937,7 @@ func (rm *RouteManager) ExportDataset(w http.ResponseWriter, r *http.Request) {
 
 	task := &tasks.TaskExportDataset{
 		DatasetID:  datasetID,
-		ExportPath: payload.Path,
+		ExportPath: path,
 		Force:      payload.Force,
 		UserID:     userID,
 		Cfg:        rm.Cfg,
@@ -897,8 +984,15 @@ func (rm *RouteManager) sendDatasetDetail(w http.ResponseWriter, datasetID int) 
 			Created:      d.Created.Format("2006-01-02 15:04:05"),
 			LastModified: d.LastModified.Format("2006-01-02 15:04:05"),
 		},
-		Metadata:        metaItems,
-		ExportDirectory: d.ExportDirectory,
+		Metadata:         metaItems,
+		ExportDirectory:  d.ExportDirectory,
+		S3Endpoint:       d.S3Endpoint,
+		S3Region:         d.S3Region,
+		S3Bucket:         d.S3Bucket,
+		S3AccessKey:      d.S3AccessKey,
+		S3SecretKey:      d.S3SecretKey,
+		S3UseSSL:         d.S3UseSSL,
+		S3ForcePathStyle: d.S3ForcePathStyle,
 	}
 
 	rm.WriteJSON(w, detail)
@@ -945,18 +1039,29 @@ func (rm *RouteManager) ExportDatasetChunked(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	s3Enabled := strings.TrimSpace(d.S3Endpoint) != "" && strings.TrimSpace(d.S3Bucket) != ""
+
 	path := strings.TrimSpace(payload.Path)
-	if path == "" {
+	if path == "" && !s3Enabled {
 		path = strings.TrimSpace(d.ExportDirectory)
 	}
-	if path == "" {
-		rm.ErrorJSON(w, "No export directory configured: set export_directory on the dataset or provide path in the request", http.StatusBadRequest)
-		return
-	}
 
-	if err := validateExportDirectory(path); err != nil {
-		rm.ErrorJSON(w, err.Error(), http.StatusBadRequest)
-		return
+	if s3Enabled {
+		tempDir, err := os.MkdirTemp("", "qalibre-export-s3-*")
+		if err != nil {
+			rm.ErrorJSON(w, "Failed to create temporary directory for S3 upload", http.StatusInternalServerError)
+			return
+		}
+		path = tempDir
+	} else {
+		if path == "" {
+			rm.ErrorJSON(w, "No export directory configured: set export_directory on the dataset or provide path in the request", http.StatusBadRequest)
+			return
+		}
+		if err := validateExportDirectory(path); err != nil {
+			rm.ErrorJSON(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	chunkSize := payload.ChunkSize

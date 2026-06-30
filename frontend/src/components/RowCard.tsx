@@ -30,7 +30,6 @@ export function RowCard({
   index,
   onClick,
   onToggleRead = () => {},
-  onToggleArchived = () => {},
   onRemove,
   onDelete,
   selectable = false,
@@ -96,11 +95,17 @@ export function RowCard({
                   style={{ padding: "2px 6px", minHeight: "24px" }}
                 />
                 <Button
-                  icon={book.is_archived ? "archive" : "import"}
+                  icon="download"
                   variant="minimal"
-                  title={book.is_archived ? "Restore from Archive" : "Archive Book"}
-                  onClick={onToggleArchived}
-                  className={book.is_archived ? "bp6-intent-warning" : ""}
+                  title="Download"
+                  disabled={!book.formats || book.formats.length === 0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (book.formats && book.formats.length > 0) {
+                      const fileExt = book.formats[0].format.toLowerCase();
+                      window.open(`/download/${book.id}/${fileExt}`, "_blank");
+                    }
+                  }}
                   style={{ padding: "2px 6px", minHeight: "24px" }}
                 />
                 {onDelete && (
