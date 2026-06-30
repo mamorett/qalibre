@@ -7,7 +7,6 @@ import {
   Button,
   HTMLSelect,
   Label,
-  InputGroup,
   Popover,
   Menu,
   MenuItem,
@@ -27,7 +26,6 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, refetchSession } = useApp();
-  const [searchVal, setSearchVal] = useState("");
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const uploadManagerRef = useRef<UploadManagerRef>(null);
 
@@ -39,13 +37,6 @@ export function Layout() {
 
   // Fetch stats data
   const { data: stats, isLoading: isStatsLoading } = useStats();
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchVal.trim()) {
-      navigate(`/spa?q=${encodeURIComponent(searchVal)}`);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -146,14 +137,6 @@ export function Layout() {
           />
         </NavbarGroup>
         <NavbarGroup align={Alignment.END}>
-          <form onSubmit={handleSearchSubmit}>
-            <InputGroup
-              leftIcon="search"
-              placeholder="Search..."
-              value={searchVal}
-              onChange={(e) => setSearchVal(e.target.value)}
-            />
-          </form>
           <NavbarDivider />
           <Button
             icon="cog"

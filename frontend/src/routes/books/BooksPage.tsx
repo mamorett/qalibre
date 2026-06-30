@@ -3,7 +3,7 @@ import { useBooks } from "../../hooks/useBooks";
 import { RowCard } from "../../components/RowCard";
 import { BookDetailDialog } from "../../components/BookDetailDialog";
 import { Pagination } from "../../components/Pagination";
-import { Spinner, NonIdealState, Button, Alert } from "@blueprintjs/core";
+import { Spinner, NonIdealState, Button, Alert, InputGroup } from "@blueprintjs/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { useState } from "react";
@@ -88,12 +88,12 @@ export default function BooksPage() {
 
   const { rows, total } = data;
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !search) {
     return (
       <NonIdealState
-        icon="search"
-        title="No Books Found"
-        description={search ? `No books matched the query: "${search}"` : "The Calibre database is currently empty."}
+        icon="database"
+        title="Calibre Database is Empty"
+        description="The Calibre database is currently empty."
       />
     );
   }
@@ -114,6 +114,33 @@ export default function BooksPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
+      {/* Integrated dynamic search bar */}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1rem" }}>
+        <div style={{ flex: 1, maxWidth: "400px" }}>
+          <InputGroup
+            leftIcon="search"
+            placeholder="Filter books by title, author, series..."
+            value={search}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchParams(
+                (prev) => {
+                  if (val) {
+                    prev.set("q", val);
+                  } else {
+                    prev.delete("q");
+                  }
+                  prev.set("offset", "0");
+                  return prev;
+                },
+                { replace: true }
+              );
+            }}
+            style={{ borderRadius: 0 }}
+          />
+        </div>
+      </div>
+
       {/* Sticky top pagination bar — always visible while scrolling */}
       {totalPages > 1 && (
         <div className="pagination-top">
@@ -121,30 +148,40 @@ export default function BooksPage() {
         </div>
       )}
 
-      {/* Grid of Books */}
-      <div
-        className="book-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(auto-fill, minmax(${gridMin}px, 1fr))`,
-          gap: "1.5rem",
-          alignContent: "start",
-          flex: 1,
-          padding: "1.5rem 0",
-        }}
-      >
-        {rows.map((book, idx) => (
-          <RowCard
-            key={book.id}
-            book={book}
-            index={offset + idx + 1}
-            onClick={() => setSelectedBookId(book.id)}
-            onToggleRead={() => toggleReadMutation.mutate(book.id)}
-            onToggleArchived={() => toggleArchivedMutation.mutate(book.id)}
-            onDelete={canDelete ? () => setDeleteBookId(book.id) : undefined}
+      {rows.length === 0 ? (
+        <div style={{ padding: "4rem 0" }}>
+          <NonIdealState
+            icon="search"
+            title="No Books Found"
+            description={`No books matched the query: "${search}"`}
           />
-        ))}
-      </div>
+        </div>
+      ) : (
+        /* Grid of Books */
+        <div
+          className="book-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(auto-fill, minmax(${gridMin}px, 1fr))`,
+            gap: "1.5rem",
+            alignContent: "start",
+            flex: 1,
+            padding: "1.5rem 0",
+          }}
+        >
+          {rows.map((book, idx) => (
+            <RowCard
+              key={book.id}
+              book={book}
+              index={offset + idx + 1}
+              onClick={() => setSelectedBookId(book.id)}
+              onToggleRead={() => toggleReadMutation.mutate(book.id)}
+              onToggleArchived={() => toggleArchivedMutation.mutate(book.id)}
+              onDelete={canDelete ? () => setDeleteBookId(book.id) : undefined}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Detail Dialog */}
       {selectedBookId !== null && (

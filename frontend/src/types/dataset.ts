@@ -19,6 +19,13 @@ export interface DatasetSummary {
 export interface DatasetDetail extends DatasetSummary {
   metadata: MetadataItem[];
   export_directory: string;
+  s3_endpoint?: string;
+  s3_region?: string;
+  s3_bucket?: string;
+  s3_access_key?: string;
+  s3_secret_key?: string;
+  s3_use_ssl?: boolean;
+  s3_force_path_style?: boolean;
 }
 
 export interface CreateDatasetPayload {
@@ -26,6 +33,13 @@ export interface CreateDatasetPayload {
   description?: string;
   metadata?: MetadataItem[];
   export_directory?: string;
+  s3_endpoint?: string;
+  s3_region?: string;
+  s3_bucket?: string;
+  s3_access_key?: string;
+  s3_secret_key?: string;
+  s3_use_ssl?: boolean;
+  s3_force_path_style?: boolean;
 }
 
 export interface AddBooksPayload {

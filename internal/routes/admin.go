@@ -26,12 +26,19 @@ func (rm *RouteManager) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rm.WriteJSON(w, map[string]interface{}{
-		"config_calibre_dir":       calibreDir,
-		"config_books_per_page":    cfg.ConfigBooksPerPage,
-		"config_calibre_web_title": cfg.ConfigCalibreWebTitle,
-		"config_public_reg":        cfg.ConfigPublicReg == 1,
-		"config_uploading":         cfg.ConfigUploading == 1,
-		"config_anonbrowse":        cfg.ConfigAnonBrowse == 1,
+		"config_calibre_dir":         calibreDir,
+		"config_books_per_page":      cfg.ConfigBooksPerPage,
+		"config_calibre_web_title":   cfg.ConfigCalibreWebTitle,
+		"config_public_reg":          cfg.ConfigPublicReg == 1,
+		"config_uploading":           cfg.ConfigUploading == 1,
+		"config_anonbrowse":          cfg.ConfigAnonBrowse == 1,
+		"config_s3_endpoint":         cfg.ConfigS3Endpoint,
+		"config_s3_region":           cfg.ConfigS3Region,
+		"config_s3_bucket":           cfg.ConfigS3Bucket,
+		"config_s3_access_key":       cfg.ConfigS3AccessKey,
+		"config_s3_secret_key":       cfg.ConfigS3SecretKey,
+		"config_s3_use_ssl":          cfg.ConfigS3UseSSL,
+		"config_s3_force_path_style": cfg.ConfigS3ForcePathStyle,
 	})
 }
 
@@ -83,6 +90,27 @@ func (rm *RouteManager) PostConfig(w http.ResponseWriter, r *http.Request) {
 					s.ConfigAnonBrowse = 0
 				}
 			}
+		}
+		if val, ok := req["config_s3_endpoint"].(string); ok {
+			s.ConfigS3Endpoint = strings.TrimSpace(val)
+		}
+		if val, ok := req["config_s3_region"].(string); ok {
+			s.ConfigS3Region = strings.TrimSpace(val)
+		}
+		if val, ok := req["config_s3_bucket"].(string); ok {
+			s.ConfigS3Bucket = strings.TrimSpace(val)
+		}
+		if val, ok := req["config_s3_access_key"].(string); ok {
+			s.ConfigS3AccessKey = strings.TrimSpace(val)
+		}
+		if val, ok := req["config_s3_secret_key"].(string); ok {
+			s.ConfigS3SecretKey = strings.TrimSpace(val)
+		}
+		if val, ok := req["config_s3_use_ssl"].(bool); ok {
+			s.ConfigS3UseSSL = val
+		}
+		if val, ok := req["config_s3_force_path_style"].(bool); ok {
+			s.ConfigS3ForcePathStyle = val
 		}
 	})
 

@@ -62,6 +62,14 @@ func (t *TaskExportDataset) Run(ctx context.Context, db interface{}) (err error)
 		return fmt.Errorf("failed to fetch dataset: %w", err)
 	}
 
+	s3Enabled := s3Configured(&dataset)
+	if s3Enabled {
+		defer func() {
+			slog.Info("export: cleaning up S3 temporary directory", "path", t.ExportPath)
+			_ = os.RemoveAll(t.ExportPath)
+		}()
+	}
+
 	// Load metadata
 	var metadata []appdb.DatasetMetadata
 	err = sqlxDB.Select(&metadata, "SELECT * FROM dataset_metadata WHERE dataset_id = ? ORDER BY sort_order", t.DatasetID)
@@ -293,6 +301,21 @@ exported_at: "%s"
 			continue
 		}
 
+		if s3Configured(&dataset) {
+			s3Key := fmt.Sprintf("%s/%s.md", sanitizedName, sanitizedTitle)
+			if uploadErr := uploadFileToS3(ctx, &dataset, bookFile, s3Key); uploadErr != nil {
+				slog.Error("export plain: failed to upload to S3", "key", s3Key, "err", uploadErr)
+				statuses = append(statuses, bookStatus{
+					Title:        book.Title,
+					BookID:       bookID,
+					SourceFormat: ext,
+					Status:       "Failed",
+					Details:      fmt.Sprintf("Failed to upload to S3: %v", uploadErr),
+				})
+				continue
+			}
+		}
+
 		statuses = append(statuses, bookStatus{
 			Title:        book.Title,
 			BookID:       bookID,
@@ -338,6 +361,14 @@ exported_at: "%s"
 	err = os.WriteFile(indexFile, []byte(indexBuilder.String()), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write dataset.md index file: %w", err)
+	}
+
+	if s3Configured(&dataset) {
+		s3Key := fmt.Sprintf("%s/dataset.md", sanitizedName)
+		if uploadErr := uploadFileToS3(ctx, &dataset, indexFile, s3Key); uploadErr != nil {
+			slog.Error("export plain: failed to upload index to S3", "key", s3Key, "err", uploadErr)
+			return fmt.Errorf("failed to upload index to S3: %w", uploadErr)
+		}
 	}
 
 	wMgr.SetProgress(t.TaskID, 1.0)

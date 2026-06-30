@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"log/slog"
@@ -62,6 +63,14 @@ func (t *TaskExportDatasetChunked) Run(ctx context.Context, db interface{}) (err
 	err = sqlxDB.Get(&dataset, "SELECT * FROM dataset WHERE id = ?", t.DatasetID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch dataset: %w", err)
+	}
+
+	s3Enabled := s3Configured(&dataset)
+	if s3Enabled {
+		defer func() {
+			slog.Info("export chunked: cleaning up S3 temporary directory", "path", t.ExportPath)
+			_ = os.RemoveAll(t.ExportPath)
+		}()
 	}
 
 	// Load metadata
@@ -304,9 +313,26 @@ func (t *TaskExportDatasetChunked) Run(ctx context.Context, db interface{}) (err
 			metadataSection = sb.String()
 		}
 
-		for _, chunk := range chunks {
-			chunkFile := filepath.Join(chunkedDir, fmt.Sprintf("%s__chunk_%03d.md", sanitizedTitle, chunk.Index))
-			frontMatter := fmt.Sprintf(`---
+		// Group chunks for a single book in a zip file, in the correct order
+		zipPath := filepath.Join(chunkedDir, sanitizedTitle+".zip")
+		err = func() error {
+			zipFile, err := os.Create(zipPath)
+			if err != nil {
+				return fmt.Errorf("failed to create zip file: %w", err)
+			}
+			defer zipFile.Close()
+
+			zw := zip.NewWriter(zipFile)
+			defer zw.Close()
+
+			for _, chunk := range chunks {
+				chunkFileName := fmt.Sprintf("%s__chunk_%03d.md", sanitizedTitle, chunk.Index)
+				w, err := zw.Create(chunkFileName)
+				if err != nil {
+					return fmt.Errorf("failed to create zip entry for chunk %d: %w", chunk.Index, err)
+				}
+
+				frontMatter := fmt.Sprintf(`---
 title: "%s"
 authors: "%s"
 book_id: %d
@@ -318,23 +344,43 @@ chunk_size: %d
 chunk_overlap: %d
 `, escapedTitle, escapedAuthors, bookID, ext, escapedDatasetName, time.Now().Format(time.RFC3339), chunk.Index, t.ChunkSize, t.ChunkOverlap)
 
-			if metadataSection != "" {
-				frontMatter += metadataSection
-			}
-			frontMatter += "---\n\n"
+				if metadataSection != "" {
+					frontMatter += metadataSection
+				}
+				frontMatter += "---\n\n"
 
-			err = os.WriteFile(chunkFile, []byte(frontMatter+chunk.Text), 0644)
-			if err != nil {
-				slog.Error("export chunked: failed to write chunk file", "taskID", t.TaskID, "file", chunkFile, "err", err)
+				_, err = w.Write([]byte(frontMatter + chunk.Text))
+				if err != nil {
+					return fmt.Errorf("failed to write chunk %d to zip: %w", chunk.Index, err)
+				}
+			}
+			return nil
+		}()
+
+		if err != nil {
+			slog.Error("export chunked: failed to create zip file", "taskID", t.TaskID, "file", zipPath, "err", err)
+			statuses = append(statuses, bookStatus{
+				Title:        book.Title,
+				BookID:       bookID,
+				SourceFormat: ext,
+				Status:       "Failed",
+				Details:      err.Error(),
+			})
+			continue
+		}
+
+		if s3Configured(&dataset) {
+			s3Key := fmt.Sprintf("%s/chunked/%s.zip", sanitizedName, sanitizedTitle)
+			if uploadErr := uploadFileToS3(ctx, &dataset, zipPath, s3Key); uploadErr != nil {
+				slog.Error("export chunked: failed to upload zip to S3", "key", s3Key, "err", uploadErr)
 				statuses = append(statuses, bookStatus{
 					Title:        book.Title,
 					BookID:       bookID,
 					SourceFormat: ext,
 					Status:       "Failed",
-					Details:      fmt.Sprintf("Failed to write chunk %d: %v", chunk.Index, err),
+					Details:      fmt.Sprintf("Failed to upload to S3: %v", uploadErr),
 				})
-				// break or continue? Let's just record failed status once and stop writing chunks of this book
-				break
+				continue
 			}
 		}
 
@@ -352,7 +398,7 @@ chunk_overlap: %d
 				BookID:       bookID,
 				SourceFormat: ext,
 				Status:       "Exported",
-				Details:      fmt.Sprintf("%d chunks generated", len(chunks)),
+				Details:      fmt.Sprintf("%d chunks generated in zip", len(chunks)),
 			})
 		}
 	}
@@ -395,6 +441,14 @@ chunk_overlap: %d
 	err = os.WriteFile(indexFile, []byte(indexBuilder.String()), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write dataset.md index file: %w", err)
+	}
+
+	if s3Configured(&dataset) {
+		s3Key := fmt.Sprintf("%s/dataset.md", sanitizedName)
+		if uploadErr := uploadFileToS3(ctx, &dataset, indexFile, s3Key); uploadErr != nil {
+			slog.Error("export chunked: failed to upload index to S3", "key", s3Key, "err", uploadErr)
+			return fmt.Errorf("failed to upload index to S3: %w", uploadErr)
+		}
 	}
 
 	wMgr.SetProgress(t.TaskID, 1.0)

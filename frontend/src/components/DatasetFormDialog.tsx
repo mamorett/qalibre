@@ -8,6 +8,9 @@ import {
   TextArea,
   HTMLSelect,
   FormGroup,
+  Checkbox,
+  RadioGroup,
+  Radio,
 } from "@blueprintjs/core";
 import { DatasetDetail, MetadataItem, MetadataValueType } from "../types/dataset";
 import { useCreateDataset, useUpdateDataset } from "../hooks/useDatasets";
@@ -40,6 +43,14 @@ export function DatasetFormDialog({
   const [exportDirectory, setExportDirectory] = useState("");
   const [exportDirectoryError, setExportDirectoryError] = useState<string | undefined>(undefined);
   const [metadata, setMetadata] = useState<LocalMetadataItem[]>([]);
+  const [storageType, setStorageType] = useState<"local" | "s3">("local");
+  const [s3Endpoint, setS3Endpoint] = useState("");
+  const [s3Region, setS3Region] = useState("");
+  const [s3Bucket, setS3Bucket] = useState("");
+  const [s3AccessKey, setS3AccessKey] = useState("");
+  const [s3SecretKey, setS3SecretKey] = useState("");
+  const [s3UseSSL, setS3UseSSL] = useState(true);
+  const [s3ForcePathStyle, setS3ForcePathStyle] = useState(true);
 
   const createMutation = useCreateDataset();
   const updateMutation = useUpdateDataset(dataset?.id || 0);
@@ -58,11 +69,28 @@ export function DatasetFormDialog({
             value_type: m.value_type,
           }))
         );
+        setS3Endpoint(dataset.s3_endpoint || "");
+        setS3Region(dataset.s3_region || "");
+        setS3Bucket(dataset.s3_bucket || "");
+        setS3AccessKey(dataset.s3_access_key || "");
+        setS3SecretKey(dataset.s3_secret_key || "");
+        setS3UseSSL(dataset.s3_use_ssl !== false);
+        setS3ForcePathStyle(dataset.s3_force_path_style !== false);
+        const hasS3 = !!(dataset.s3_endpoint && dataset.s3_endpoint.trim());
+        setStorageType(hasS3 ? "s3" : "local");
       } else {
         setName("");
         setDescription("");
         setExportDirectory("");
         setMetadata([]);
+        setS3Endpoint("");
+        setS3Region("");
+        setS3Bucket("");
+        setS3AccessKey("");
+        setS3SecretKey("");
+        setS3UseSSL(true);
+        setS3ForcePathStyle(true);
+        setStorageType("local");
       }
     }
   }, [isOpen, mode, dataset]);
@@ -127,12 +155,14 @@ export function DatasetFormDialog({
     }
 
     let exportDirErr: string | undefined;
-    const dir = exportDirectory.trim();
-    if (dir) {
-      const isAbs = dir.startsWith('/') || !!dir.match(/^[A-Za-z]:[\\\/]/);
-      if (!isAbs) {
-        exportDirErr = "Must be an absolute path";
-        hasError = true;
+    if (storageType === "local") {
+      const dir = exportDirectory.trim();
+      if (dir) {
+        const isAbs = dir.startsWith('/') || !!dir.match(/^[A-Za-z]:[\\\/]/);
+        if (!isAbs) {
+          exportDirErr = "Must be an absolute path";
+          hasError = true;
+        }
       }
     }
     setExportDirectoryError(exportDirErr);
@@ -151,36 +181,34 @@ export function DatasetFormDialog({
       value_type: m.value_type,
     }));
 
+    const payload = {
+      name: name.trim(),
+      description: description.trim(),
+      metadata: cleanMetadata,
+      export_directory: storageType === "local" ? exportDirectory.trim() : "",
+      s3_endpoint: storageType === "s3" ? s3Endpoint.trim() : "",
+      s3_region: storageType === "s3" ? s3Region.trim() : "",
+      s3_bucket: storageType === "s3" ? s3Bucket.trim() : "",
+      s3_access_key: storageType === "s3" ? s3AccessKey.trim() : "",
+      s3_secret_key: storageType === "s3" ? s3SecretKey.trim() : "",
+      s3_use_ssl: storageType === "s3" ? s3UseSSL : true,
+      s3_force_path_style: storageType === "s3" ? s3ForcePathStyle : true,
+    };
+
     if (mode === "create") {
-      createMutation.mutate(
-        {
-          name: name.trim(),
-          description: description.trim(),
-          metadata: cleanMetadata,
-          export_directory: exportDirectory.trim(),
+      createMutation.mutate(payload, {
+        onSuccess: (data) => {
+          onSuccess(data);
+          onClose();
         },
-        {
-          onSuccess: (data) => {
-            onSuccess(data);
-            onClose();
-          },
-        }
-      );
+      });
     } else if (dataset) {
-      updateMutation.mutate(
-        {
-          name: name.trim(),
-          description: description.trim(),
-          metadata: cleanMetadata,
-          export_directory: exportDirectory.trim(),
+      updateMutation.mutate(payload, {
+        onSuccess: (data) => {
+          onSuccess(data);
+          onClose();
         },
-        {
-          onSuccess: (data) => {
-            onSuccess(data);
-            onClose();
-          },
-        }
-      );
+      });
     }
   };
 
@@ -203,10 +231,14 @@ export function DatasetFormDialog({
       <form onSubmit={handleSubmit}>
         <DialogBody>
           <FormGroup
-            label="Dataset Name"
+            label={
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>
+                Dataset Name
+              </span>
+            }
             labelInfo="(required)"
             labelFor="dataset-name"
-            style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+            style={{ marginBottom: "1rem" }}
           >
             <InputGroup
               id="dataset-name"
@@ -219,9 +251,13 @@ export function DatasetFormDialog({
           </FormGroup>
 
           <FormGroup
-            label="Description"
+            label={
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>
+                Description
+              </span>
+            }
             labelFor="dataset-desc"
-            style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+            style={{ marginBottom: "1rem" }}
           >
             <TextArea
               id="dataset-desc"
@@ -239,25 +275,137 @@ export function DatasetFormDialog({
           </FormGroup>
 
           <FormGroup
-            label="Export Directory"
-            labelInfo="(absolute path, optional)"
-            labelFor="dataset-export-dir"
-            helperText={exportDirectoryError || "Default directory used for plain & chunked Markdown exports. Subdirectories named after the dataset are created automatically."}
-            intent={exportDirectoryError ? "danger" : "none"}
-            style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+            label={
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold", textTransform: "uppercase" }}>
+                Storage Type
+              </span>
+            }
+            style={{ marginBottom: "1rem" }}
           >
-            <InputGroup
-              id="dataset-export-dir"
-              placeholder="e.g., /exports/my-dataset"
-              value={exportDirectory}
-              onChange={(e) => {
-                setExportDirectory(e.target.value);
-                setExportDirectoryError(undefined);
-              }}
-              intent={exportDirectoryError ? "danger" : "none"}
-              style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
-            />
+            <RadioGroup
+              inline
+              onChange={(e) => setStorageType(e.currentTarget.value as "local" | "s3")}
+              selectedValue={storageType}
+            >
+              <Radio label="Local Directory" value="local" style={{ fontFamily: "Space Mono, monospace", fontSize: "0.8rem", textTransform: "uppercase" }} />
+              <Radio label="S3 Compatible Storage" value="s3" style={{ fontFamily: "Space Mono, monospace", fontSize: "0.8rem", textTransform: "uppercase" }} />
+            </RadioGroup>
           </FormGroup>
+
+          {storageType === "local" ? (
+            <FormGroup
+              label="Export Directory"
+              labelInfo="(absolute path, optional)"
+              labelFor="dataset-export-dir"
+              helperText={exportDirectoryError || "Default directory used for plain & chunked Markdown exports. Subdirectories named after the dataset are created automatically."}
+              intent={exportDirectoryError ? "danger" : "none"}
+              style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+            >
+              <InputGroup
+                id="dataset-export-dir"
+                placeholder="e.g., /exports/my-dataset"
+                value={exportDirectory}
+                onChange={(e) => {
+                  setExportDirectory(e.target.value);
+                  setExportDirectoryError(undefined);
+                }}
+                intent={exportDirectoryError ? "danger" : "none"}
+                style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+              />
+            </FormGroup>
+          ) : (
+            <div style={{ border: "1px solid var(--border-color)", padding: "1.5rem", marginBottom: "1.5rem", backgroundColor: "var(--bg-tertiary)" }}>
+              <FormGroup
+                label="S3 Endpoint"
+                labelInfo="(required)"
+                labelFor="dataset-s3-endpoint"
+                style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+              >
+                <InputGroup
+                  id="dataset-s3-endpoint"
+                  placeholder="s3.amazonaws.com"
+                  value={s3Endpoint}
+                  onChange={(e) => setS3Endpoint(e.target.value)}
+                  style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+                  required
+                />
+              </FormGroup>
+
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <FormGroup
+                  label="S3 Region"
+                  labelFor="dataset-s3-region"
+                  style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem", flex: 1 }}
+                >
+                  <InputGroup
+                    id="dataset-s3-region"
+                    placeholder="us-east-1"
+                    value={s3Region}
+                    onChange={(e) => setS3Region(e.target.value)}
+                    style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+                  />
+                </FormGroup>
+
+                <FormGroup
+                  label="S3 Bucket"
+                  labelInfo="(required)"
+                  labelFor="dataset-s3-bucket"
+                  style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem", flex: 2 }}
+                >
+                  <InputGroup
+                    id="dataset-s3-bucket"
+                    placeholder="my-bucket"
+                    value={s3Bucket}
+                    onChange={(e) => setS3Bucket(e.target.value)}
+                    style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+                    required
+                  />
+                </FormGroup>
+              </div>
+
+              <FormGroup
+                label="S3 Access Key"
+                labelFor="dataset-s3-access-key"
+                style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1rem" }}
+              >
+                <InputGroup
+                  id="dataset-s3-access-key"
+                  value={s3AccessKey}
+                  onChange={(e) => setS3AccessKey(e.target.value)}
+                  style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+                />
+              </FormGroup>
+
+              <FormGroup
+                label="S3 Secret Key"
+                labelFor="dataset-s3-secret-key"
+                style={{ textTransform: "uppercase", fontSize: "0.75rem", marginBottom: "1.5rem" }}
+              >
+                <InputGroup
+                  id="dataset-s3-secret-key"
+                  type="password"
+                  value={s3SecretKey}
+                  onChange={(e) => setS3SecretKey(e.target.value)}
+                  style={{ borderRadius: 0, border: "1px solid var(--border-color)", fontFamily: "sans-serif" }}
+                />
+              </FormGroup>
+
+              <div style={{ display: "flex", gap: "2rem", marginBottom: "0.5rem" }}>
+                <Checkbox
+                  label="Use SSL (HTTPS)"
+                  checked={s3UseSSL}
+                  onChange={(e) => setS3UseSSL(e.target.checked)}
+                  style={{ fontSize: "0.8rem", textTransform: "uppercase" }}
+                />
+                <Checkbox
+                  label="Force Path Style"
+                  checked={s3ForcePathStyle}
+                  onChange={(e) => setS3ForcePathStyle(e.target.checked)}
+                  style={{ fontSize: "0.8rem", textTransform: "uppercase" }}
+                />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
